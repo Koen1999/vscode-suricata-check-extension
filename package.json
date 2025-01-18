@@ -1,30 +1,34 @@
 {
-    "name": "<pytool-module>",
-    "displayName": "<pytool-display-name>",
-    "description": "Linting support for python files using `<pytool-module>`.",
-    "version": "2022.0.0-dev",
+    "name": "suricata-check",
+    "displayName": "Suricata Check",
+    "description": "Linting support for suricate rules files using `suricata-check`.",
+    "version": "2024.1.19",
     "preview": true,
     "serverInfo": {
-        "name": "<pytool-display-name>",
-        "module": "<pytool-module>"
+        "name": "Suricata Check",
+        "module": "suricata-check"
     },
-    "publisher": "<my-publisher>",
+    "pricing": "Free",
+    "publisher": "Koen1999",
     "license": "MIT",
-    "homepage": "https://github.com/<my-github>/<my-extension-project>",
+    "homepage": "https://github.com/Koen1999/suricata-check",
     "repository": {
         "type": "git",
-        "url": "https://github.com/<my-github>/<my-extension-project>.git"
+        "url": "https://github.com/Koen1999/suricata-check-extension-example.git"
     },
     "bugs": {
-        "url": "https://github.com/<my-github>/<my-extension-project>/issues"
+        "url": "https://github.com/Koen1999/suricata-check-extension-example/issues"
     },
     "galleryBanner": {
         "color": "#1e415e",
         "theme": "dark"
     },
     "keywords": [
-        "python",
-        "<pytool-module>"
+        "suricata",
+        "suricata-check",
+        "ids",
+        "ide",
+        "security"
     ],
     "engines": {
         "vscode": "^1.78.0"
@@ -40,12 +44,13 @@
     "capabilities": {
         "virtualWorkspaces": {
             "supported": false,
-            "description": "Virtual Workspaces are not supported with <pytool-display-name>."
+            "description": "Virtual Workspaces are not supported with Suricata Check."
         }
     },
     "activationEvents": [
-        "onLanguage:python",
-        "workspaceContains:*.py"
+        "onLanguage:suricata",
+        "workspaceContains:*.rules",
+        "workspaceContains:*.suricata"
     ],
     "main": "./dist/extension.js",
     "scripts": {
@@ -56,15 +61,14 @@
         "compile-tests": "tsc -p . --outDir out",
         "watch-tests": "tsc -p . -w --outDir out",
         "pretest": "npm run compile-tests && npm run compile && npm run lint",
-        "lint": "eslint src --ext ts",
         "format-check": "prettier --check 'src/**/*.ts' 'build/**/*.yml' '.github/**/*.yml'",
         "test": "node ./out/test/runTest.js",
-        "vsce-package": "vsce package -o <pytool-module>.vsix"
+        "vsce-package": "vsce package -o suricata-check.vsix"
     },
     "contributes": {
         "configuration": {
             "properties": {
-                "<pytool-module>.args": {
+                "suricata-check.args": {
                     "default": [],
                     "description": "Arguments passed in. Each argument is a separate item in the array.",
                     "items": {
@@ -73,30 +77,30 @@
                     "scope": "resource",
                     "type": "array"
                 },
-                "<pytool-module>.path": {
+                "suricata-check.path": {
                     "default": [],
-                    "description": "When set to a path to <pytool-module> binary, extension will use that. NOTE: Using this option may slowdown server response time.",
+                    "description": "When set to a path to suricata-check binary, extension will use that. NOTE: Using this option may slowdown server response time.",
                     "scope": "resource",
                     "items": {
                         "type": "string"
                     },
                     "type": "array"
                 },
-                "<pytool-module>.importStrategy": {
+                "suricata-check.importStrategy": {
                     "default": "useBundled",
-                    "description": "Defines where `<pytool-module>` is imported from. This setting may be ignored if `<pytool-module>.path` is set.",
+                    "description": "Defines where `suricata-check` is imported from. This setting may be ignored if `suricata-check.path` is set.",
                     "enum": [
                         "useBundled",
                         "fromEnvironment"
                     ],
                     "enumDescriptions": [
-                        "Always use the bundled version of `<pytool-module>`.",
-                        "Use `<pytool-module>` from environment, fallback to bundled version only if `<pytool-module>` not available in the environment."
+                        "Always use the bundled version of `suricata-check`.",
+                        "Use `suricata-check` from environment, fallback to bundled version only if `suricata-check` not available in the environment."
                     ],
                     "scope": "window",
                     "type": "string"
                 },
-                "<pytool-module>.interpreter": {
+                "suricata-check.interpreter": {
                     "default": [],
                     "description": "When set to a path to python executable, extension will use that to launch the server and any subprocess.",
                     "scope": "resource",
@@ -105,8 +109,8 @@
                     },
                     "type": "array"
                 },
-                "<pytool-module>.showNotifications": {
-                    "default": "off",
+                "suricata-check.showNotifications": {
+                    "default": "onError",
                     "description": "Controls when notifications are shown by this extension.",
                     "enum": [
                         "off",
@@ -128,10 +132,24 @@
         "commands": [
             {
                 "title": "Restart Server",
-                "category": "<pytool-display-name>",
-                "command": "<pytool-module>.restart"
+                "category": "Suricata Check",
+                "command": "suricata-check.restart"
             }
-        ]
+        ],
+        "languages": [
+			{
+				"id": "suricata",
+				"aliases": [
+					"Suricata",
+					"suricata"
+				],
+				"extensions": [
+					".rules",
+					".suricata"
+				],
+				"configuration": "./language-configuration.json"
+			}
+		]
     },
     "dependencies": {
         "@vscode/python-extension": "^1.0.5",
@@ -143,11 +161,8 @@
         "@types/vscode": "1.78.0",
         "@types/glob": "^8.1.0",
         "@types/node": "16.x",
-        "@typescript-eslint/eslint-plugin": "^6.17.0",
-        "@typescript-eslint/parser": "^6.17.0",
         "@vscode/test-electron": "^2.4.1",
         "@vscode/vsce": "^2.22.0",
-        "eslint": "^9.18.0",
         "glob": "^10.3.10",
         "prettier": "^3.1.1",
         "typescript": "^5.3.3",

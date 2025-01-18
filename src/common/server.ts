@@ -61,13 +61,8 @@ async function createServer(
     const clientOptions: LanguageClientOptions = {
         // Register the server for python documents
         documentSelector: isVirtualWorkspace()
-            ? [{ language: 'python' }]
-            : [
-                  { scheme: 'file', language: 'python' },
-                  { scheme: 'untitled', language: 'python' },
-                  { scheme: 'vscode-notebook', language: 'python' },
-                  { scheme: 'vscode-notebook-cell', language: 'python' },
-              ],
+            ? [{ language: 'suricata' }]
+            : [{ scheme: 'file', language: 'suricata' }],
         outputChannel: outputChannel,
         traceOutputChannel: outputChannel,
         revealOutputChannelOn: RevealOutputChannelOn.Never,

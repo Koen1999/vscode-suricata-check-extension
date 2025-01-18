@@ -10,3 +10,7 @@ bundled/libs/
 **/__pycache__
 **/.pytest_cache
 **/.vs
+**/.*_suricata_check/
+**/suricata-check*.log
+**/suricata-check*.json
+**/suricata-check*.jsonl

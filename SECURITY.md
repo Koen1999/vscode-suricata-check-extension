@@ -1,10 +1,6 @@
-# TODO: The maintainer of this repo has not yet edited this file
-
-**Repo Owner** Make sure you update this. As a repository owner you will need to decide how you want to handle reporting of security issues for your project.
+To report security concerns regarding the Visual Studio Code extension for suricata-check, please send an email to [k.t.w.teuwen@tue.nl](mailto:k.t.w.teuwen@tue.nl).
 
 ---
-
-** Content below this line is the Security information for the template itself **
 
 <!-- BEGIN MICROSOFT SECURITY.MD V0.0.7 BLOCK -->
 

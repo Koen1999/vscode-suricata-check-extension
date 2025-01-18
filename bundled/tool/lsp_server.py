@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Microsoft Corporation, Koen Teuwen. All rights reserved.
 # Licensed under the MIT License.
 """Implementation of tool support over LSP."""
 from __future__ import annotations
@@ -7,11 +7,11 @@ import copy
 import json
 import os
 import pathlib
-import re
 import sys
-import sysconfig
 import traceback
 from typing import Any, Optional, Sequence
+
+import suricata_check
 
 
 # **********************************************************
@@ -45,10 +45,9 @@ WORKSPACE_SETTINGS = {}
 GLOBAL_SETTINGS = {}
 RUNNER = pathlib.Path(__file__).parent / "lsp_runner.py"
 
-MAX_WORKERS = 5
-# TODO: Update the language server name and version.
+MAX_WORKERS = 1
 LSP_SERVER = server.LanguageServer(
-    name="<pytool-display-name>", version="<server version>", max_workers=MAX_WORKERS
+    name="Suricata Check", version=suricata_check.__version__, max_workers=MAX_WORKERS
 )
 
 
@@ -65,21 +64,13 @@ LSP_SERVER = server.LanguageServer(
 #  Black: https://github.com/microsoft/vscode-black-formatter/blob/main/bundled/tool
 #  isort: https://github.com/microsoft/vscode-isort/blob/main/bundled/tool
 
-# TODO: Update TOOL_MODULE with the module name for your tool.
-# e.g, TOOL_MODULE = "pylint"
-TOOL_MODULE = "<pytool-module>"
+TOOL_MODULE = "suricata_check"
 
-# TODO: Update TOOL_DISPLAY with a display name for your tool.
-# e.g, TOOL_DISPLAY = "Pylint"
-TOOL_DISPLAY = "<pytool-display-name>"
+TOOL_DISPLAY = "Suricata Check"
 
-# TODO: Update TOOL_ARGS with default argument you have to pass to your tool in
-# all scenarios.
 TOOL_ARGS = []  # default arguments always passed to your tool.
 
 
-# TODO: If your tool is a linter then update this section.
-# Delete "Linting features" section if your tool is NOT a linter.
 # **********************************************************
 # Linting features start here
 # **********************************************************
@@ -91,7 +82,7 @@ TOOL_ARGS = []  # default arguments always passed to your tool.
 @LSP_SERVER.feature(lsp.TEXT_DOCUMENT_DID_OPEN)
 def did_open(params: lsp.DidOpenTextDocumentParams) -> None:
     """LSP handler for textDocument/didOpen request."""
-    document = LSP_SERVER.workspace.get_document(params.text_document.uri)
+    document = LSP_SERVER.workspace.get_text_document(params.text_document.uri)
     diagnostics: list[lsp.Diagnostic] = _linting_helper(document)
     LSP_SERVER.publish_diagnostics(document.uri, diagnostics)
 
@@ -99,7 +90,7 @@ def did_open(params: lsp.DidOpenTextDocumentParams) -> None:
 @LSP_SERVER.feature(lsp.TEXT_DOCUMENT_DID_SAVE)
 def did_save(params: lsp.DidSaveTextDocumentParams) -> None:
     """LSP handler for textDocument/didSave request."""
-    document = LSP_SERVER.workspace.get_document(params.text_document.uri)
+    document = LSP_SERVER.workspace.get_text_document(params.text_document.uri)
     diagnostics: list[lsp.Diagnostic] = _linting_helper(document)
     LSP_SERVER.publish_diagnostics(document.uri, diagnostics)
 
@@ -107,150 +98,83 @@ def did_save(params: lsp.DidSaveTextDocumentParams) -> None:
 @LSP_SERVER.feature(lsp.TEXT_DOCUMENT_DID_CLOSE)
 def did_close(params: lsp.DidCloseTextDocumentParams) -> None:
     """LSP handler for textDocument/didClose request."""
-    document = LSP_SERVER.workspace.get_document(params.text_document.uri)
+    document = LSP_SERVER.workspace.get_text_document(params.text_document.uri)
     # Publishing empty diagnostics to clear the entries for this file.
     LSP_SERVER.publish_diagnostics(document.uri, [])
 
 
 def _linting_helper(document: workspace.Document) -> list[lsp.Diagnostic]:
-    # TODO: Determine if your tool supports passing file content via stdin.
-    # If you want to support linting on change then your tool will need to
-    # support linting over stdin to be effective. Read, and update
-    # _run_tool_on_document and _run_tool functions as needed for your project.
-    result = _run_tool_on_document(document)
-    return _parse_output_using_regex(result.stdout) if result.stdout else []
+    log_to_output("Running suricata-check on {}".format(document.path))
+    
+    output_path = os.path.join(
+        *os.path.split(document.path)[:-1],
+        ".{}_suricata_check".format(os.path.split(document.path)[-1]),
+    )
+
+    _ = _run_tool_on_document(document, extra_args=["--gitlab", "-o", output_path])
+    
+    input_path = os.path.join(output_path, "suricata-check-gitlab.json")
+    
+    log_to_output("Reading suricata-check output from {}".format(input_path))
+
+    with open(input_path, "r") as fh:
+        output = json.loads(fh.read())
+
+    return _parse_output(output)
 
 
-# TODO: If your linter outputs in a known format like JSON, then parse
-# accordingly. But incase you need to parse the output using RegEx here
-# is a helper you can work with.
-# flake8 example:
-# If you use following format argument with flake8 you can use the regex below to parse it.
-# TOOL_ARGS += ["--format='%(row)d,%(col)d,%(code).1s,%(code)s:%(text)s'"]
-# DIAGNOSTIC_RE =
-#    r"(?P<line>\d+),(?P<column>-?\d+),(?P<type>\w+),(?P<code>\w+\d+):(?P<message>[^\r\n]*)"
-DIAGNOSTIC_RE = re.compile(r"")
-
-
-def _parse_output_using_regex(content: str) -> list[lsp.Diagnostic]:
-    lines: list[str] = content.splitlines()
+def _parse_output(output: list[dict]) -> list[lsp.Diagnostic]:
     diagnostics: list[lsp.Diagnostic] = []
 
-    # TODO: Determine if your linter reports line numbers starting at 1 (True) or 0 (False).
     line_at_1 = True
-    # TODO: Determine if your linter reports column numbers starting at 1 (True) or 0 (False).
     column_at_1 = True
 
     line_offset = 1 if line_at_1 else 0
     col_offset = 1 if column_at_1 else 0
-    for line in lines:
-        if line.startswith("'") and line.endswith("'"):
-            line = line[1:-1]
-        match = DIAGNOSTIC_RE.match(line)
-        if match:
-            data = match.groupdict()
-            position = lsp.Position(
-                line=max([int(data["line"]) - line_offset, 0]),
-                character=int(data["column"]) - col_offset,
-            )
-            diagnostic = lsp.Diagnostic(
-                range=lsp.Range(
-                    start=position,
-                    end=position,
-                ),
-                message=data.get("message"),
-                severity=_get_severity(data["code"], data["type"]),
-                code=data["code"],
-                source=TOOL_MODULE,
-            )
-            diagnostics.append(diagnostic)
+
+    for data in output:
+        position_begin = lsp.Position(
+            line=max([int(data["location"]["lines"]["begin"]) - line_offset, 0]),
+            character=1 - col_offset,
+        )
+        position_end = lsp.Position(
+            line=max([int(data["location"]["lines"]["end"]) - line_offset, 0]),
+            character=1 - col_offset,
+        )
+
+        if data["severity"] == "critical":
+            severity = 1
+        elif data["severity"] == "major":
+            severity = 1
+        elif data["severity"] == "minor":
+            severity = 2
+        elif data["severity"] == "info":
+            severity = 3
+        else:
+            log_error("Unknown severity in suricata-check output")
+            continue
+
+        diagnostic = lsp.Diagnostic(
+            range=lsp.Range(
+                start=position_begin,
+                end=position_end,
+            ),
+            message=data["description"],
+            severity=lsp.DiagnosticSeverity(severity),
+            code=data["check_name"].split(" ")[-1],
+            code_description=lsp.CodeDescription(href="https://suricata-check.teuwen.net/autoapi/suricata_check/checkers/index.html#suricata_check.checkers.{}".format(data["categories"][0])),
+            source=TOOL_MODULE,
+        )
+
+        diagnostics.append(diagnostic)
+        
+    log_to_output("Finished collecting diagnostics from output.")
 
     return diagnostics
 
 
-# TODO: if you want to handle setting specific severity for your linter
-# in a user configurable way, then look at look at how it is implemented
-# for `pylint` extension from our team.
-# Pylint: https://github.com/microsoft/vscode-pylint
-# Follow the flow of severity from the settings in package.json to the server.
-def _get_severity(*_codes: list[str]) -> lsp.DiagnosticSeverity:
-    # TODO: All reported issues from linter are treated as warning.
-    # change it as appropriate for your linter.
-    return lsp.DiagnosticSeverity.Warning
-
-
 # **********************************************************
 # Linting features end here
-# **********************************************************
-
-# TODO: If your tool is a formatter then update this section.
-# Delete "Formatting features" section if your tool is NOT a
-# formatter.
-# **********************************************************
-# Formatting features start here
-# **********************************************************
-#  Sample implementations:
-#  Black: https://github.com/microsoft/vscode-black-formatter/blob/main/bundled/tool
-
-
-@LSP_SERVER.feature(lsp.TEXT_DOCUMENT_FORMATTING)
-def formatting(params: lsp.DocumentFormattingParams) -> list[lsp.TextEdit] | None:
-    """LSP handler for textDocument/formatting request."""
-    # If your tool is a formatter you can use this handler to provide
-    # formatting support on save. You have to return an array of lsp.TextEdit
-    # objects, to provide your formatted results.
-
-    document = LSP_SERVER.workspace.get_document(params.text_document.uri)
-    edits = _formatting_helper(document)
-    if edits:
-        return edits
-
-    # NOTE: If you provide [] array, VS Code will clear the file of all contents.
-    # To indicate no changes to file return None.
-    return None
-
-
-def _formatting_helper(document: workspace.Document) -> list[lsp.TextEdit] | None:
-    # TODO: For formatting on save support the formatter you use must support
-    # formatting via stdin.
-    # Read, and update_run_tool_on_document and _run_tool functions as needed
-    # for your formatter.
-    result = _run_tool_on_document(document, use_stdin=True)
-    if result.stdout:
-        new_source = _match_line_endings(document, result.stdout)
-        return [
-            lsp.TextEdit(
-                range=lsp.Range(
-                    start=lsp.Position(line=0, character=0),
-                    end=lsp.Position(line=len(document.lines), character=0),
-                ),
-                new_text=new_source,
-            )
-        ]
-    return None
-
-
-def _get_line_endings(lines: list[str]) -> str:
-    """Returns line endings used in the text."""
-    try:
-        if lines[0][-2:] == "\r\n":
-            return "\r\n"
-        return "\n"
-    except Exception:  # pylint: disable=broad-except
-        return None
-
-
-def _match_line_endings(document: workspace.Document, text: str) -> str:
-    """Ensures that the edited text line endings matches the document line endings."""
-    expected = _get_line_endings(document.source.splitlines(keepends=True))
-    actual = _get_line_endings(text.splitlines(keepends=True))
-    if actual == expected or actual is None or expected is None:
-        return text
-    return text.replace(actual, expected)
-
-
-# **********************************************************
-# Formatting features ends here
 # **********************************************************
 
 
@@ -380,13 +304,10 @@ def _run_tool_on_document(
     if extra_args is None:
         extra_args = []
     if str(document.uri).startswith("vscode-notebook-cell"):
-        # TODO: Decide on if you want to skip notebook cells.
         # Skip notebook cells
         return None
 
     if utils.is_stdlib_file(document.path):
-        # TODO: Decide on if you want to skip standard library files.
-        # Skip standard library python files.
         return None
 
     # deep copy here to prevent accidentally updating global settings.
@@ -416,19 +337,10 @@ def _run_tool_on_document(
     argv += TOOL_ARGS + settings["args"] + extra_args
 
     if use_stdin:
-        # TODO: update these to pass the appropriate arguments to provide document contents
-        # to tool via stdin.
-        # For example, for pylint args for stdin looks like this:
-        #     pylint --from-stdin <path>
-        # Here `--from-stdin` path is used by pylint to make decisions on the file contents
-        # that are being processed. Like, applying exclusion rules.
-        # It should look like this when you pass it:
-        #     argv += ["--from-stdin", document.path]
-        # Read up on how your tool handles contents via stdin. If stdin is not supported use
-        # set use_stdin to False, or provide path, what ever is appropriate for your tool.
-        argv += []
+        # Currently not supported
+        return None
     else:
-        argv += [document.path]
+        argv += ["--rules", document.path]
 
     if use_path:
         # This mode is used when running executables.
@@ -470,7 +382,7 @@ def _run_tool_on_document(
         # sys.path and that might not work for this scenario next time around.
         with utils.substitute_attr(sys, "path", sys.path[:]):
             try:
-                # TODO: `utils.run_module` is equivalent to running `python -m <pytool-module>`.
+                # `utils.run_module` is equivalent to running `python -m suricata-check`.
                 # If your tool supports a programmatic API then replace the function below
                 # with code for your tool. You can also use `utils.run_api` helper, which
                 # handles changing working directories, managing io streams, etc.
@@ -553,7 +465,7 @@ def _run_tool(extra_args: Sequence[str]) -> utils.RunResult:
         # sys.path and that might not work for this scenario next time around.
         with utils.substitute_attr(sys, "path", sys.path[:]):
             try:
-                # TODO: `utils.run_module` is equivalent to running `python -m <pytool-module>`.
+                # `utils.run_module` is equivalent to running `python -m suricata-check`.
                 # If your tool supports a programmatic API then replace the function below
                 # with code for your tool. You can also use `utils.run_api` helper, which
                 # handles changing working directories, managing io streams, etc.
