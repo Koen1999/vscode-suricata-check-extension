@@ -11,8 +11,6 @@ import sys
 import traceback
 from typing import Any, Optional, Sequence
 
-import suricata_check
-
 
 # **********************************************************
 # Update sys.path before importing any bundled libraries.
@@ -40,6 +38,7 @@ import lsp_jsonrpc as jsonrpc
 import lsp_utils as utils
 import lsprotocol.types as lsp
 from pygls import server, uris, workspace
+import suricata_check
 
 WORKSPACE_SETTINGS = {}
 GLOBAL_SETTINGS = {}
