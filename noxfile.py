@@ -15,7 +15,7 @@ def _install_bundle(session: nox.Session) -> None:
     session.install(
         "-t",
         "./bundled/libs",
-        # "--no-cache-dir",
+        "--no-cache-dir",
         "--implementation",
         "py",
         "--no-deps",
@@ -37,14 +37,14 @@ def _check_files(names: List[str]) -> None:
 def _update_pip_packages(session: nox.Session) -> None:
     session.run(
         "pip-compile",
-        # "--generate-hashes",
+        "--generate-hashes",
         "--resolver=backtracking",
         "--upgrade",
         "./requirements.in",
     )
     session.run(
         "pip-compile",
-        # "--generate-hashes",
+        "--generate-hashes",
         "--resolver=backtracking",
         "--upgrade",
         "./src/test/python_tests/requirements.in",
