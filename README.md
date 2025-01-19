@@ -34,6 +34,10 @@ For example, the following configuration will include all issues concerning mand
 ]
 ```
 
+## Performance
+
+For optimal performance, we suggest setting `suricata-check.importStrategy` to `fromEnvironment` and installing `suricata-check` with `regex` into your environment using `pip install -U suricata-check[performance]`.
+
 ## Alterative distributions
 
 Suricata check is also available as a [command line tool](https://suricata-check.teuwen.net/cli_usage.html), which even offers [integration with CI/CD pipelines](https://suricata-check.teuwen.net/ci_cd.html).
