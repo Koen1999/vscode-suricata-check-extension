@@ -12,5 +12,5 @@
 pygls
 packaging
 
-suricata-check[performance]>=0.3.7beta0
+suricata-check>=0.3.8beta0
 # suricata-check[performance] @ git+https://github.com/Koen1999/suricata-check.git
