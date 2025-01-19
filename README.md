@@ -3,6 +3,45 @@
 `suricata-check` is a command line utility to provide feedback on [Suricata](https://github.com/OISF/suricata) rules.
 The tool can detect various issues including those covering syntax validity, interpretability, rule specificity, rule coverage, and efficiency.
 
+## Features
+
+`suricata-check`, offers the following features:
+
+- Static analysis without Suricata installation for any operating system
+- Detect using isssues pertaining to:
+- - Missing mandatory options
+- - Deviations from Suricata Style Guide best practices
+- - - Missing/non-standard metadata fields, performance issues and more
+- - Lack of rule coverage and specificity
+- [Easily extendable with custom checkers](https://suricata-check.teuwen.net/checker.html)
+
+For a complete overview, check out the [documentation](https://suricata-check.teuwen.net/).
+
+## Configuration
+
+You can pass argument to the [`suricata-check` CLI]() using the `suricata-check.args` configuration option in VS Code.
+
+For example, adding `"suricata-check.args": ["--issue-severity=WARNING"]` will only show issues with severity WARNING or greater.
+
+It is also possible to enable or disable individual or groups of codes using the `--include` and `--exclude` options, which also accept regular expressions.
+
+For example, the following configuration will include all issues concerning mandatory Suricata options and all issues based on the Suricata Style Guide, except S800 which prescribes `attack_target` as a mandatory metadata option:
+```json
+"suricata-check.args": [
+  "--include=M.*",
+  "--include=S.*",
+  "--exclude=S800",
+]
+```
+
+## Alterative distributions
+
+Suricata check is also available as a [command line tool](https://suricata-check.teuwen.net/cli_usage.html), which even offers [integration with CI/CD pipelines](https://suricata-check.teuwen.net/ci_cd.html).
+
+When installed as a [PyPI Python package](https://pypi.org/project/suricata-check) you can also make use of [the API exposed by the module](https://suricata-check.teuwen.net/api_usage.html).
+
+## Notes
+
 [This repository](https://github.com/Koen1999/vscode-suricata-check-extension) only hosts the VS Code Extension. You can find the main repository [here](https://github.com/Koen1999/suricata-check).
 
 You can find the release version of this extension on the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=Koen1999.suricata-check).
