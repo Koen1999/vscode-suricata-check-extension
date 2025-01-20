@@ -46,6 +46,6 @@ When installed as a [PyPI Python package](https://pypi.org/project/suricata-chec
 
 ## Notes
 
-[This repository](https://github.com/Koen1999/vscode-suricata-check-extension) only hosts the VS Code Extension. You can find the main repository [here](https://github.com/Koen1999/suricata-check).
+[This repository](https://github.com/Koen1999/vscode-suricata-check-extension) only hosts the VS Code Extension comprising of the Language Server Protocol implementation for the tool to offer linting in Interactive Development Environments (IDE). You can find the main repository [here](https://github.com/Koen1999/suricata-check).
 
 You can find the release version of this extension on the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=Koen1999.suricata-check).
