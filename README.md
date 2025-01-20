@@ -19,7 +19,7 @@ For a complete overview, check out the [documentation](https://suricata-check.te
 
 ## Configuration
 
-You can pass argument to the [`suricata-check` CLI]() using the `suricata-check.args` configuration option in VS Code.
+You can pass argument to the [`suricata-check` CLI](https://suricata-check.teuwen.net/cli_usage.html) using the `suricata-check.args` configuration option in VS Code.
 
 For example, adding `"suricata-check.args": ["--issue-severity=WARNING"]` will only show issues with severity WARNING or greater.
 
@@ -33,6 +33,8 @@ For example, the following configuration will include all issues concerning mand
   "--exclude=S800",
 ]
 ```
+
+For a complete overview of available command line options, check out the [CLI Reference](https://suricata-check.teuwen.net/cli.html).
 
 ## Performance
 
