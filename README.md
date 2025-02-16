@@ -19,6 +19,20 @@ For a complete overview, check out the [documentation](https://suricata-check.te
 
 ## Configuration
 
+### Option 1: `suricata-check.ini` configuration
+
+You can create a project-wide configuration for `suricata-check` by creating a file called `suricata-check.ini` in your workspace.
+
+The contents of `suricata-check.ini` can be configured as follows:
+```ini
+[suricata-check]
+issue-severity="INFO"
+include-all=true
+exclude=["P.*", "Q.*"]
+```
+
+### Option 2: CLI Arguments
+
 You can pass argument to the [`suricata-check` CLI](https://suricata-check.teuwen.net/cli_usage.html) using the `suricata-check.args` configuration option in VS Code.
 
 For example, adding `"suricata-check.args": ["--issue-severity=WARNING"]` will only show issues with severity WARNING or greater.
@@ -33,6 +47,8 @@ For example, the following configuration will include all issues concerning mand
   "--exclude=S800",
 ]
 ```
+
+### Additional configuration options
 
 For a complete overview of available command line options, check out the [CLI Reference](https://suricata-check.teuwen.net/cli.html).
 
