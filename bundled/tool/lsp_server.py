@@ -5,11 +5,13 @@ from __future__ import annotations
 
 import copy
 import json
+import logging
 import os
 import pathlib
+import re
 import sys
 import traceback
-from typing import Any, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 
 # **********************************************************
@@ -104,16 +106,16 @@ def did_close(params: lsp.DidCloseTextDocumentParams) -> None:
 
 def _linting_helper(document: workspace.Document) -> list[lsp.Diagnostic]:
     log_to_output("Running suricata-check on {}".format(document.path))
-    
+
     output_path = os.path.join(
         *os.path.split(document.path)[:-1],
         ".{}_suricata_check".format(os.path.split(document.path)[-1]),
     )
 
     _ = _run_tool_on_document(document, extra_args=["--gitlab", "-o", output_path])
-    
+
     input_path = os.path.join(output_path, "suricata-check-gitlab.json")
-    
+
     log_to_output("Reading suricata-check output from {}".format(input_path))
 
     with open(input_path, "r") as fh:
@@ -161,12 +163,16 @@ def _parse_output(output: list[dict]) -> list[lsp.Diagnostic]:
             message=data["description"],
             severity=lsp.DiagnosticSeverity(severity),
             code=data["check_name"].split(" ")[-1],
-            code_description=lsp.CodeDescription(href="https://suricata-check.teuwen.net/autoapi/suricata_check/checkers/index.html#suricata_check.checkers.{}".format(data["categories"][0])),
-            source=TOOL_MODULE,
+            code_description=lsp.CodeDescription(
+                href="https://suricata-check.teuwen.net/autoapi/suricata_check/checkers/index.html#suricata_check.checkers.{}".format(
+                    data["categories"][0]
+                )
+            ),
+            source=TOOL_DISPLAY,
         )
 
         diagnostics.append(diagnostic)
-        
+
     log_to_output("Finished collecting diagnostics from output.")
 
     return diagnostics
@@ -174,6 +180,155 @@ def _parse_output(output: list[dict]) -> list[lsp.Diagnostic]:
 
 # **********************************************************
 # Linting features end here
+# **********************************************************
+
+
+# **********************************************************
+# Code Action features start here
+# **********************************************************
+class QuickFixSolutions:
+    """Manages quick fixes registered using the quick fix decorator."""
+
+    def __init__(self):
+        self._solutions: Dict[
+            str,
+            Callable[[workspace.Document, List[lsp.Diagnostic]], List[lsp.CodeAction]],
+        ] = {}
+
+    def quick_fix(self, codes: Union[str, List[str]]):
+        """Decorator used for registering quick fixes."""
+
+        def decorator(
+            func: Callable[
+                [workspace.Document, List[lsp.Diagnostic]], List[lsp.CodeAction]
+            ]
+        ):
+            if isinstance(codes, str):
+                if codes in self._solutions:
+                    raise utils.QuickFixRegistrationError(codes)
+                self._solutions[codes] = func
+            else:
+                for code in codes:
+                    if code in self._solutions:
+                        raise utils.QuickFixRegistrationError(code)
+                    self._solutions[code] = func
+
+        return decorator
+
+    def solutions(
+        self, code: str
+    ) -> Optional[
+        Callable[[workspace.Document, List[lsp.Diagnostic]], List[lsp.CodeAction]]
+    ]:
+        """Given a suricata-check error code returns a function, if available, that provides
+        quick fix code actions."""
+        return self._solutions.get(code, None)
+
+
+QUICK_FIXES = QuickFixSolutions()
+
+
+@LSP_SERVER.feature(
+    lsp.TEXT_DOCUMENT_CODE_ACTION,
+    lsp.CodeActionOptions(
+        code_action_kinds=[lsp.CodeActionKind.QuickFix], resolve_provider=True
+    ),
+)
+def code_action(params: lsp.CodeActionParams) -> List[lsp.CodeAction]:
+    """LSP handler for textDocument/codeAction request."""
+
+    document = LSP_SERVER.workspace.get_document(params.text_document.uri)
+    code_actions = []
+
+    diagnostics = (d for d in params.context.diagnostics if d.source == TOOL_DISPLAY)
+
+    for diagnostic in diagnostics:
+        func = QUICK_FIXES.solutions(diagnostic.code)
+        if func:
+            code_actions.extend(func(document, [diagnostic]))
+    return code_actions
+
+
+def _get_all_codes() -> list[str]:
+    checkers = suricata_check.get_checkers(
+        include=(".*",), exclude=(), issue_severity=logging.DEBUG
+    )
+
+    codes = set()
+    for checker in checkers:
+        codes = codes.union(checker.codes.keys())
+
+    assert len(codes) > 0
+
+    return list(codes)
+
+
+@QUICK_FIXES.quick_fix(codes=_get_all_codes())
+def ignore_code(
+    document: workspace.Document, diagnostics: List[lsp.Diagnostic]
+) -> List[lsp.CodeAction]:
+    """Provides quick fixes which involve ignoring issues."""
+    return [
+        lsp.CodeAction(
+            title=f"{TOOL_DISPLAY}: Ignore Issue {diagnostics[0].code}",
+            kind=lsp.CodeActionKind.QuickFix,
+            diagnostics=diagnostics,
+            edit=None,
+            data=document.uri,
+        )
+    ]
+
+
+def _get_ignore_edit(diagnostic: lsp.Diagnostic, lines: List[str]) -> lsp.CodeAction:
+    position = lsp.Position(diagnostic.range.start.line, len(lines[diagnostic.range.start.line]))
+    
+    if "# suricata-check: ignore" not in lines[diagnostic.range.start.line]:
+        return lsp.TextEdit(
+            lsp.Range(position, position),
+            "  # suricata-check: ignore "
+            + diagnostic.code,
+        )
+
+    return lsp.TextEdit(
+        lsp.Range(position, position),
+        "," + diagnostic.code,
+    )
+
+
+@LSP_SERVER.feature(lsp.CODE_ACTION_RESOLVE)
+def code_action_resolve(params: lsp.CodeAction) -> lsp.CodeAction:
+    """LSP handler for codeAction/resolve request."""
+    if params.data:
+        document = LSP_SERVER.workspace.get_document(params.data)
+        params.edit = _create_workspace_edits(
+            document,
+            [
+                _get_ignore_edit(diagnostic, document.lines)
+                for diagnostic in params.diagnostics
+                if diagnostic.source == TOOL_DISPLAY
+            ],
+        )
+    return params
+
+
+def _create_workspace_edits(
+    document: workspace.Document, results: Optional[List[lsp.TextEdit]]
+):
+    return lsp.WorkspaceEdit(
+        document_changes=[
+            lsp.TextDocumentEdit(
+                text_document=lsp.OptionalVersionedTextDocumentIdentifier(
+                    uri=document.uri,
+                    version=document.version if document.version else 0,
+                ),
+                edits=results,
+            )
+        ],
+    )
+
+
+# **********************************************************
+# Code Action features end here
 # **********************************************************
 
 
