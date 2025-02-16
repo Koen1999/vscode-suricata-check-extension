@@ -12,4 +12,4 @@
 pygls
 packaging
 
-suricata-check>=0.4.0beta0
+suricata-check>=0.5.1beta0

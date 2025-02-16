@@ -52,6 +52,14 @@ For example, the following configuration will include all issues concerning mand
 
 For a complete overview of available command line options, check out the [CLI Reference](https://suricata-check.teuwen.net/cli.html).
 
+## Suppressing issues for individual rules
+
+You can suppress issues on a per-rule basis by adding a `# suricata-check: ignore` comment.
+
+For example, `# suricata-check: ignore C.*` will disable all Community checkers for a the rule behind which the comment is placed.
+
+More details can be found in the [documentation on suppressing rules](https://suricata-check.teuwen.net/ignore.html).
+
 ## Performance
 
 For optimal performance, we suggest setting `suricata-check.importStrategy` to `fromEnvironment` and installing `suricata-check` with `regex` into your environment using `pip install -U suricata-check[performance]`.
