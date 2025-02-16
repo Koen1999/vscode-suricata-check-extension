@@ -2,4 +2,4 @@ alert dns any any -> any any (msg:"Request to google.com"; content:"google.com";
 
 alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"KOEN INFO Outgoing Plaintext HTTP Request"; flow:established,from_client; sid:1; rev:1;)
 
-# alert dns any any -> any any (content:"google.com"; sid: 1;)
+alert dns any any -> any any (content:"google.com"; sid: 1;)
