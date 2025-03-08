@@ -54,9 +54,9 @@ For a complete overview of available command line options, check out the [CLI Re
 
 ## Suppressing issues for individual rules
 
-You can suppress issues on a per-rule basis by adding a `# suricata-check: ignore` comment.
+You can suppress issues on a per-rule basis by adding a the `suricata-check` keyword to the `metadata` option.
 
-For example, `# suricata-check: ignore C.*` will disable all Community checkers for a the rule behind which the comment is placed.
+For example, `metadata: suricata-check "C.*";` will disable all Community checkers for a the rule behind which the comment is placed.
 
 More details can be found in the [documentation on suppressing rules](https://suricata-check.teuwen.net/ignore.html).
 
