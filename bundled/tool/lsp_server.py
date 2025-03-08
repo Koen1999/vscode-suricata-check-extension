@@ -36,6 +36,8 @@ update_sys_path(
 # Imports needed for the language server goes below this.
 # **********************************************************
 # pylint: disable=wrong-import-position,import-error
+import idstools
+import idstools.rule
 import lsp_jsonrpc as jsonrpc
 import lsp_utils as utils
 import lsprotocol.types as lsp
@@ -201,7 +203,7 @@ class QuickFixSolutions:
         def decorator(
             func: Callable[
                 [workspace.Document, List[lsp.Diagnostic]], List[lsp.CodeAction]
-            ]
+            ],
         ):
             if isinstance(codes, str):
                 if codes in self._solutions:
@@ -280,19 +282,33 @@ def ignore_code(
 
 
 def _get_ignore_edit(diagnostic: lsp.Diagnostic, lines: List[str]) -> lsp.CodeAction:
-    position = lsp.Position(diagnostic.range.start.line, len(lines[diagnostic.range.start.line]))
-    
-    if "# suricata-check: ignore" not in lines[diagnostic.range.start.line]:
-        return lsp.TextEdit(
-            lsp.Range(position, position),
-            "  # suricata-check: ignore "
-            + diagnostic.code,
-        )
+    rule = lines[diagnostic.range.start.line]
+    parsed_rule: idstools.rule.Rule = idstools.rule.parse(rule)
+    position_start = lsp.Position(diagnostic.range.start.line, 0)
+    position_end = lsp.Position(diagnostic.range.start.line, len(rule))
 
-    return lsp.TextEdit(
-        lsp.Range(position, position),
-        "," + diagnostic.code,
-    )
+    if (
+        "metadata" not in parsed_rule
+        or parsed_rule["metadata"] is None
+        or len(parsed_rule["metadata"]) == 0
+    ):
+        parsed_rule = idstools.rule.add_option(
+            parsed_rule, "metadata", f'suricata-check "{diagnostic.code}"'
+        )
+    else:
+        old_metadata = ", ".join(parsed_rule["metadata"])
+        if "suricata-check" not in old_metadata:
+            new_metadata = old_metadata + f', suricata-check "{diagnostic.code}"'
+        else:
+            new_metadata = re.sub(
+                r'(suricata-check\s+")',
+                f'suricata-check "{diagnostic.code},',
+                old_metadata,
+            )
+        parsed_rule = idstools.rule.remove_option(parsed_rule, "metadata")
+        parsed_rule = idstools.rule.add_option(parsed_rule, "metadata", new_metadata)
+
+    return lsp.TextEdit(lsp.Range(position_start, position_end), str(parsed_rule))
 
 
 @LSP_SERVER.feature(lsp.CODE_ACTION_RESOLVE)
