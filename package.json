@@ -162,7 +162,7 @@
         "@types/glob": "^8.1.0",
         "@types/node": "16.x",
         "@vscode/test-electron": "^2.4.1",
-        "@vscode/vsce": "^3.4.2",
+        "@vscode/vsce": "^3.6.0",
         "glob": "^11.0.1",
         "prettier": "^3.5.2",
         "typescript": "^5.8.2",
