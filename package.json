@@ -159,7 +159,7 @@
     "devDependencies": {
         "@types/fs-extra": "^11.0.4",
         "@types/vscode": "1.78.0",
-        "@types/glob": "^8.1.0",
+        "@types/glob": "^9.0.0",
         "@types/node": "16.x",
         "@vscode/test-electron": "^2.4.1",
         "@vscode/vsce": "^3.6.0",
