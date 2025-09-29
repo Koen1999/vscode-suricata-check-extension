@@ -2,7 +2,7 @@
     "name": "suricata-check",
     "displayName": "Suricata Check",
     "description": "Linting support for Suricata rules files using `suricata-check`.",
-    "version": "2024.6.3",
+    "version": "2024.9.29",
     "preview": true,
     "serverInfo": {
         "name": "Suricata Check",
