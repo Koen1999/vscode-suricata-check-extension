@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 /* eslint-disable @typescript-eslint/naming-convention */
-import { commands, Disposable, Event, EventEmitter, Uri } from 'vscode';
+import { commands, Disposable, Event, EventEmitter, Uri, WorkspaceFolder } from 'vscode';
 import { traceError, traceLog } from './log/logging';
 import { PythonExtension, ResolvedEnvironment } from '@vscode/python-extension';
 
@@ -30,7 +30,11 @@ export async function initializePython(disposables: Disposable[]): Promise<void>
         if (api) {
             disposables.push(
                 api.environments.onDidChangeActiveEnvironmentPath((e) => {
-                    onDidChangePythonInterpreterEvent.fire({ path: [e.path], resource: e.resource?.uri });
+                    onDidChangePythonInterpreterEvent.fire({
+                        path: [e.path],
+                        resource:
+                            e.resource instanceof Uri ? (e.resource as Uri) : (e.resource as WorkspaceFolder)?.uri,
+                    });
                 }),
             );
 
