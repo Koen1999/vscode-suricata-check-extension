@@ -139,10 +139,6 @@ click==8.1.8 \
     --hash=sha256:63c132bbbed01578a06712a2d1f497bb62d9c1c0d329b7903a866228027263b2 \
     --hash=sha256:ed53c9d8990d83c2a27deae68e4ee337473f6330c040a31d4225c9574d16096a
     # via suricata-check
-colorama==0.4.6 \
-    --hash=sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44 \
-    --hash=sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6
-    # via click
 exceptiongroup==1.3.0 \
     --hash=sha256:4d111e6e0c13d0644cad6ddaa7ed0261a0b36971f6d23e7ec9b4b9097da78a10 \
     --hash=sha256:b241f5885f560bc56a59ee63ca4c6a8bfa46ae4ad651af316d4e81817bb9fd88
@@ -180,9 +176,9 @@ suricata-check==6.0.0b0 \
     # via
     #   -r requirements.in
     #   suricata-check-design-principles
-suricata-check-design-principles==6.0.0b0 \
-    --hash=sha256:1bd62e72a4126bee25e3b226ed907e78a1a3b98316ee2bdcd3184f4e1be4bf75 \
-    --hash=sha256:6558cea4867c0e1f45ff57e346738736335d5a777baf642c412748bbe1e02e62
+suricata-check-design-principles==6.1.0b0 \
+    --hash=sha256:3e230e6ad68e509f3957f23b6e5eb6b2fa499cbecb81d4dbae5ab0e881cd6555 \
+    --hash=sha256:593339ea6b977b3cb79c3979cb9253b2154dc92213e7eb803df17bd9aad476e9
     # via -r requirements.in
 tabulate==0.9.0 \
     --hash=sha256:0095b12bf5966de529c0feb1fa08671671b3368eec77d7ef7ab114be2c068b3c \
