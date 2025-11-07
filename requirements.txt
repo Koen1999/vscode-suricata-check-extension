@@ -139,19 +139,13 @@ click==8.3.0 \
     --hash=sha256:9b9f285302c6e3064f4330c05f05b81945b2a39544279343e6e7c5f27a9baddc \
     --hash=sha256:e7b8232224eba16f4ebe410c25ced9f7875cb5f3263ffc93cc3e8da705e229c4
     # via suricata-check
-colorama==0.4.6 \
-    --hash=sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44 \
-    --hash=sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6
-    # via click
 idna==3.11 \
     --hash=sha256:771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea \
     --hash=sha256:795dafcc9c04ed0c1fb032c2aa73654d8e8c5023a7df64a53f39190ada629902
     # via requests
 idstools==0.6.5 \
     --hash=sha256:f158dc82cbbf7a8ec1a8ba17f2aa6a971fe6546a0c6c9354d4af2070d6c79f8a
-    # via
-    #   suricata-check
-    #   suricata-check-design-principles
+    # via suricata-check
 lsprotocol==2023.0.1 \
     --hash=sha256:c75223c9e4af2f24272b14c6375787438279369236cd568f596d4951052a60f2 \
     --hash=sha256:cc5c15130d2403c18b734304339e51242d3018a05c4f7d0f198ad6e0cd21861d
@@ -176,9 +170,9 @@ suricata-check==6.1.0b0 \
     # via
     #   -r requirements.in
     #   suricata-check-design-principles
-suricata-check-design-principles==6.1.0b0 \
-    --hash=sha256:3e230e6ad68e509f3957f23b6e5eb6b2fa499cbecb81d4dbae5ab0e881cd6555 \
-    --hash=sha256:593339ea6b977b3cb79c3979cb9253b2154dc92213e7eb803df17bd9aad476e9
+suricata-check-design-principles==7.0.0b0 \
+    --hash=sha256:027515052eb5eb74e16e43534ec9e3404ac9c01e4acd7d7143bebc7a0db35ee4 \
+    --hash=sha256:3fe84d89210b496694297d3c77a64f0131fbaea1b4824cebd0ac3b8325db79aa
     # via -r requirements.in
 tabulate==0.9.0 \
     --hash=sha256:0095b12bf5966de529c0feb1fa08671671b3368eec77d7ef7ab114be2c068b3c \
