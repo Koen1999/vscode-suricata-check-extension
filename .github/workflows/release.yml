@@ -33,11 +33,10 @@ jobs:
 
       - name: Update package.json Version
         run: |
-          NEW_VERSION=$(date -u +'%Y.%m.%d.%H%M%S')
-          npm version $NEW_VERSION --no-git-tag-version
+          TIMESTAMP=$(date -u +'%Y.%m.%d.%H%M%S')
+          npm version $TIMESTAMP --no-git-tag-version
           
-          NEW_VERSION=$(node -p "require('./package.json').version")
-          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          echo "NEW_VERSION=$TIMESTAMP" >> $GITHUB_ENV
 
       - name: Install and Update Node Dependencies (npm update)
         run: npm update
