@@ -2,7 +2,7 @@
     "name": "suricata-check",
     "displayName": "Suricata Check",
     "description": "Linting support for Suricata rules files using `suricata-check`.",
-    "version": "2025.10.20",
+    "version": "2025.11.13",
     "preview": true,
     "serverInfo": {
         "name": "Suricata Check",
@@ -137,19 +137,19 @@
             }
         ],
         "languages": [
-			{
-				"id": "suricata",
-				"aliases": [
-					"Suricata",
-					"suricata"
-				],
-				"extensions": [
-					".rules",
-					".suricata"
-				],
-				"configuration": "./language-configuration.json"
-			}
-		]
+            {
+                "id": "suricata",
+                "aliases": [
+                    "Suricata",
+                    "suricata"
+                ],
+                "extensions": [
+                    ".rules",
+                    ".suricata"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ]
     },
     "dependencies": {
         "@vscode/python-extension": "^1.0.5",
