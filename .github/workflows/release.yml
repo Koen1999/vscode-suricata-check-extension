@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
         contents: write
+    environment: secrets
       
     steps:
       - name: Checkout Repository
@@ -23,6 +24,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
 
+      - name: Setup vsce
+        run: npm install -g @vscode/vsce
+
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
@@ -33,7 +37,7 @@ jobs:
 
       - name: Update package.json Version
         run: |
-          TIMESTAMP=$(date -u +'%Y.%m.%d.%H%M%S')
+          TIMESTAMP=$(date -u +'%Y.%m.%d')
           npm version $TIMESTAMP --no-git-tag-version
           
           echo "NEW_VERSION=$TIMESTAMP" >> $GITHUB_ENV
@@ -48,11 +52,7 @@ jobs:
         run: nox --session build_package
 
       - name: "Publish Release on VS Code Marketplace"
-        uses: lannonbr/vsce-action@4.0.0
-        with:
-          args: "publish -p $VSCE_TOKEN"
-        env:
-          VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }}
+        run: vsce publish -p ${{ secrets.VSCE_TOKEN }}
 
       - name: Commit release changes
         uses: stefanzweifel/git-auto-commit-action@v7
