@@ -1,8 +1,6 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
-"""
-Default initialize request params.
-"""
+"""Default initialize request params."""
 
 import os
 
@@ -54,7 +52,7 @@ VSCODE_DEFAULT_INITIALIZE = {
                         24,
                         25,
                         26,
-                    ]
+                    ],
                 },
                 "tagSupport": {"valueSet": [1]},
             },
@@ -114,7 +112,7 @@ VSCODE_DEFAULT_INITIALIZE = {
                         23,
                         24,
                         25,
-                    ]
+                    ],
                 },
             },
             "hover": {
@@ -162,7 +160,7 @@ VSCODE_DEFAULT_INITIALIZE = {
                         24,
                         25,
                         26,
-                    ]
+                    ],
                 },
                 "hierarchicalDocumentSymbolSupport": True,
                 "tagSupport": {"valueSet": [1]},
@@ -181,8 +179,8 @@ VSCODE_DEFAULT_INITIALIZE = {
                             "refactor.rewrite",
                             "source",
                             "source.organizeImports",
-                        ]
-                    }
+                        ],
+                    },
                 },
             },
             "codeLens": {"dynamicRegistration": True},

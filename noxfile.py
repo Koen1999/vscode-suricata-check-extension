@@ -6,7 +6,6 @@ import json
 import os
 import pathlib
 import urllib.request as url_lib
-from typing import List
 
 import nox  # pylint: disable=import-error
 
@@ -25,11 +24,11 @@ def _install_bundle(session: nox.Session) -> None:
     )
 
 
-def _check_files(names: List[str]) -> None:
+def _check_files(names: list[str]) -> None:
     root_dir = pathlib.Path(__file__).parent
     for name in names:
         file_path = root_dir / name
-        lines: List[str] = file_path.read_text().splitlines()
+        lines: list[str] = file_path.read_text().splitlines()
         if any(line for line in lines if line.startswith("# TODO:")):
             raise Exception(f"Please update {os.fspath(file_path)}.")
 
@@ -84,7 +83,7 @@ def _update_npm_packages(session: nox.Session) -> None:
         != package_json["devDependencies"]["@types/vscode"]
     ):
         print(
-            "Please check VS Code engine version and @types/vscode version in package.json."
+            "Please check VS Code engine version and @types/vscode version in package.json.",
         )
 
     new_package_json = json.dumps(package_json, indent=4)
@@ -119,29 +118,19 @@ def lint(session: nox.Session) -> None:
     """Runs linter and formatter checks on python files."""
     session.install("-r", "./requirements.txt")
     session.install("-r", "src/test/python_tests/requirements.txt")
-
-    session.install("pylint")
-    session.run("pylint", "-d", "W0511", "./bundled/tool")
-    session.run(
-        "pylint",
-        "-d",
-        "W0511",
-        "--ignore=./src/test/python_tests/test_data",
-        "./src/test/python_tests",
-    )
-    session.run("pylint", "-d", "W0511", "noxfile.py")
+    session.install("debugpy")
 
     # check formatting using black
     session.install("black")
-    session.run("black", "--check", "./bundled/tool")
-    session.run("black", "--check", "./src/test/python_tests")
-    session.run("black", "--check", "noxfile.py")
+    session.run("black", ".")
 
-    # check import sorting using isort
-    session.install("isort")
-    session.run("isort", "--check", "./bundled/tool")
-    session.run("isort", "--check", "./src/test/python_tests")
-    session.run("isort", "--check", "noxfile.py")
+    # check import sorting using ruff
+    session.install("ruff")
+    session.run("ruff", "check", ".", "--fix")
+
+    # check import sorting using pyright
+    session.install("pyright")
+    session.run("pyright")
 
     # check typescript code
     session.run("npm", "run", "lint", external=True)

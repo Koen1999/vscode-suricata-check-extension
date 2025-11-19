@@ -14,3 +14,4 @@ bundled/libs/
 **/suricata-check*.log
 **/suricata-check*.json
 **/suricata-check*.jsonl
+.coverage

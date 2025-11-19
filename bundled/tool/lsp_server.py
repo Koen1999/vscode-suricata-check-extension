@@ -11,7 +11,7 @@ import pathlib
 import re
 import sys
 import traceback
-from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, List
 
 
 # **********************************************************
@@ -36,13 +36,17 @@ update_sys_path(
 # Imports needed for the language server goes below this.
 # **********************************************************
 # pylint: disable=wrong-import-position,import-error
-import idstools
-import idstools.rule
-import lsp_jsonrpc as jsonrpc
-import lsp_utils as utils
-import lsprotocol.types as lsp
-from pygls import server, uris, workspace
-import suricata_check
+import idstools  # noqa: E402
+import idstools.rule  # noqa: E402
+import lsp_jsonrpc as jsonrpc  # noqa: E402
+import lsp_utils as utils  # noqa: E402
+import lsprotocol.types as lsp  # noqa: E402
+import suricata_check  # noqa: E402
+from pygls import uris, workspace  # noqa: E402
+from pygls.lsp import server  # noqa: E402
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 WORKSPACE_SETTINGS = {}
 GLOBAL_SETTINGS = {}
@@ -50,7 +54,10 @@ RUNNER = pathlib.Path(__file__).parent / "lsp_runner.py"
 
 MAX_WORKERS = 1
 LSP_SERVER = server.LanguageServer(
-    name="Suricata Check", version=suricata_check.__version__, max_workers=MAX_WORKERS
+    name="Suricata Check",
+    version=suricata_check.__version__,
+    text_document_sync_kind=lsp.TextDocumentSyncKind.Full,
+    max_workers=MAX_WORKERS,
 )
 
 
@@ -71,7 +78,11 @@ TOOL_MODULE = "suricata_check"
 
 TOOL_DISPLAY = "Suricata Check"
 
-TOOL_ARGS = []  # default arguments always passed to your tool.
+TOOL_ARGS = [
+    "--gitlab",
+    "--log-level",
+    "DEBUG",
+]  # default arguments always passed to your tool.
 
 
 # **********************************************************
@@ -87,7 +98,9 @@ def did_open(params: lsp.DidOpenTextDocumentParams) -> None:
     """LSP handler for textDocument/didOpen request."""
     document = LSP_SERVER.workspace.get_text_document(params.text_document.uri)
     diagnostics: list[lsp.Diagnostic] = _linting_helper(document)
-    LSP_SERVER.publish_diagnostics(document.uri, diagnostics)
+    LSP_SERVER.text_document_publish_diagnostics(
+        lsp.PublishDiagnosticsParams(uri=document.uri, diagnostics=diagnostics),
+    )
 
 
 @LSP_SERVER.feature(lsp.TEXT_DOCUMENT_DID_SAVE)
@@ -95,7 +108,9 @@ def did_save(params: lsp.DidSaveTextDocumentParams) -> None:
     """LSP handler for textDocument/didSave request."""
     document = LSP_SERVER.workspace.get_text_document(params.text_document.uri)
     diagnostics: list[lsp.Diagnostic] = _linting_helper(document)
-    LSP_SERVER.publish_diagnostics(document.uri, diagnostics)
+    LSP_SERVER.text_document_publish_diagnostics(
+        lsp.PublishDiagnosticsParams(uri=document.uri, diagnostics=diagnostics),
+    )
 
 
 @LSP_SERVER.feature(lsp.TEXT_DOCUMENT_DID_CLOSE)
@@ -103,24 +118,26 @@ def did_close(params: lsp.DidCloseTextDocumentParams) -> None:
     """LSP handler for textDocument/didClose request."""
     document = LSP_SERVER.workspace.get_text_document(params.text_document.uri)
     # Publishing empty diagnostics to clear the entries for this file.
-    LSP_SERVER.publish_diagnostics(document.uri, [])
+    LSP_SERVER.text_document_publish_diagnostics(
+        lsp.PublishDiagnosticsParams(uri=document.uri, diagnostics=[]),
+    )
 
 
-def _linting_helper(document: workspace.Document) -> list[lsp.Diagnostic]:
+def _linting_helper(document: workspace.TextDocument) -> list[lsp.Diagnostic]:
     log_to_output("Running suricata-check on {}".format(document.path))
 
     output_path = os.path.join(
         *os.path.split(document.path)[:-1],
-        ".{}_suricata_check".format(os.path.split(document.path)[-1]),
+        ".suricata-check/{}".format(os.path.split(document.path)[-1]),
     )
 
-    _ = _run_tool_on_document(document, extra_args=["--gitlab", "-o", output_path])
+    _ = _run_tool_on_document(document, extra_args=["-o", output_path])
 
     input_path = os.path.join(output_path, "suricata-check-gitlab.json")
 
     log_to_output("Reading suricata-check output from {}".format(input_path))
 
-    with open(input_path, "r") as fh:
+    with open(input_path) as fh:
         output = json.loads(fh.read())
 
     return _parse_output(output)
@@ -167,8 +184,8 @@ def _parse_output(output: list[dict]) -> list[lsp.Diagnostic]:
             code=data["check_name"].split(" ")[-1],
             code_description=lsp.CodeDescription(
                 href="https://suricata-check.teuwen.net/autoapi/suricata_check/checkers/index.html#suricata_check.checkers.{}".format(
-                    data["categories"][0]
-                )
+                    data["categories"][0],
+                ),
             ),
             source=TOOL_DISPLAY,
         )
@@ -192,38 +209,41 @@ class QuickFixSolutions:
     """Manages quick fixes registered using the quick fix decorator."""
 
     def __init__(self):
-        self._solutions: Dict[
+        self._solutions: dict[
             str,
-            Callable[[workspace.Document, List[lsp.Diagnostic]], List[lsp.CodeAction]],
+            Callable[
+                [workspace.TextDocument, list[lsp.Diagnostic]],
+                list[lsp.CodeAction],
+            ],
         ] = {}
 
-    def quick_fix(self, codes: Union[str, List[str]]):
+    def quick_fix(self, codes: str | list[str]):
         """Decorator used for registering quick fixes."""
 
         def decorator(
             func: Callable[
-                [workspace.Document, List[lsp.Diagnostic]], List[lsp.CodeAction]
+                [workspace.TextDocument, list[lsp.Diagnostic]],
+                list[lsp.CodeAction],
             ],
         ):
             if isinstance(codes, str):
-                if codes in self._solutions:
-                    raise utils.QuickFixRegistrationError(codes)
                 self._solutions[codes] = func
             else:
                 for code in codes:
-                    if code in self._solutions:
-                        raise utils.QuickFixRegistrationError(code)
                     self._solutions[code] = func
 
         return decorator
 
     def solutions(
-        self, code: str
-    ) -> Optional[
-        Callable[[workspace.Document, List[lsp.Diagnostic]], List[lsp.CodeAction]]
-    ]:
+        self,
+        code: str,
+    ) -> (
+        Callable[[workspace.TextDocument, list[lsp.Diagnostic]], list[lsp.CodeAction]]
+        | None
+    ):
         """Given a suricata-check error code returns a function, if available, that provides
-        quick fix code actions."""
+        quick fix code actions.
+        """
         return self._solutions.get(code, None)
 
 
@@ -233,18 +253,20 @@ QUICK_FIXES = QuickFixSolutions()
 @LSP_SERVER.feature(
     lsp.TEXT_DOCUMENT_CODE_ACTION,
     lsp.CodeActionOptions(
-        code_action_kinds=[lsp.CodeActionKind.QuickFix], resolve_provider=True
+        code_action_kinds=[lsp.CodeActionKind.QuickFix],
+        resolve_provider=True,
     ),
 )
-def code_action(params: lsp.CodeActionParams) -> List[lsp.CodeAction]:
+def code_action(params: lsp.CodeActionParams) -> list[lsp.CodeAction]:
     """LSP handler for textDocument/codeAction request."""
-
-    document = LSP_SERVER.workspace.get_document(params.text_document.uri)
+    document = LSP_SERVER.workspace.get_text_document(params.text_document.uri)
     code_actions = []
 
     diagnostics = (d for d in params.context.diagnostics if d.source == TOOL_DISPLAY)
 
     for diagnostic in diagnostics:
+        if diagnostic.code is None or not isinstance(diagnostic.code, str):
+            continue
         func = QUICK_FIXES.solutions(diagnostic.code)
         if func:
             code_actions.extend(func(document, [diagnostic]))
@@ -253,7 +275,9 @@ def code_action(params: lsp.CodeActionParams) -> List[lsp.CodeAction]:
 
 def _get_all_codes() -> list[str]:
     checkers = suricata_check.get_checkers(
-        include=(".*",), exclude=(), issue_severity=logging.DEBUG
+        include=(".*",),
+        exclude=(),
+        issue_severity=logging.DEBUG,
     )
 
     codes = set()
@@ -267,8 +291,9 @@ def _get_all_codes() -> list[str]:
 
 @QUICK_FIXES.quick_fix(codes=_get_all_codes())
 def ignore_code(
-    document: workspace.Document, diagnostics: List[lsp.Diagnostic]
-) -> List[lsp.CodeAction]:
+    document: workspace.TextDocument,
+    diagnostics: list[lsp.Diagnostic],
+) -> list[lsp.CodeAction]:
     """Provides quick fixes which involve ignoring issues."""
     return [
         lsp.CodeAction(
@@ -277,11 +302,11 @@ def ignore_code(
             diagnostics=diagnostics,
             edit=None,
             data=document.uri,
-        )
+        ),
     ]
 
 
-def _get_ignore_edit(diagnostic: lsp.Diagnostic, lines: List[str]) -> lsp.CodeAction:
+def _get_ignore_edit(diagnostic: lsp.Diagnostic, lines: Sequence[str]) -> lsp.TextEdit:
     rule = lines[diagnostic.range.start.line]
     parsed_rule: idstools.rule.Rule = idstools.rule.parse(rule)
     position_start = lsp.Position(diagnostic.range.start.line, 0)
@@ -293,7 +318,9 @@ def _get_ignore_edit(diagnostic: lsp.Diagnostic, lines: List[str]) -> lsp.CodeAc
         or len(parsed_rule["metadata"]) == 0
     ):
         parsed_rule = idstools.rule.add_option(
-            parsed_rule, "metadata", f'suricata-check "{diagnostic.code}"'
+            parsed_rule,
+            "metadata",
+            f'suricata-check "{diagnostic.code}"',
         )
     else:
         old_metadata = ", ".join(parsed_rule["metadata"])
@@ -306,7 +333,9 @@ def _get_ignore_edit(diagnostic: lsp.Diagnostic, lines: List[str]) -> lsp.CodeAc
                 old_metadata,
             )
         parsed_rule = idstools.rule.remove_option(parsed_rule, "metadata")
+        assert parsed_rule is not None
         parsed_rule = idstools.rule.add_option(parsed_rule, "metadata", new_metadata)
+        assert parsed_rule is not None
 
     return lsp.TextEdit(lsp.Range(position_start, position_end), str(parsed_rule))
 
@@ -315,20 +344,25 @@ def _get_ignore_edit(diagnostic: lsp.Diagnostic, lines: List[str]) -> lsp.CodeAc
 def code_action_resolve(params: lsp.CodeAction) -> lsp.CodeAction:
     """LSP handler for codeAction/resolve request."""
     if params.data:
-        document = LSP_SERVER.workspace.get_document(params.data)
+        document = LSP_SERVER.workspace.get_text_document(params.data)
         params.edit = _create_workspace_edits(
             document,
-            [
-                _get_ignore_edit(diagnostic, document.lines)
-                for diagnostic in params.diagnostics
-                if diagnostic.source == TOOL_DISPLAY
-            ],
+            (
+                [
+                    _get_ignore_edit(diagnostic, document.lines)
+                    for diagnostic in params.diagnostics
+                    if diagnostic.source == TOOL_DISPLAY
+                ]
+                if params.diagnostics is not None
+                else []
+            ),
         )
     return params
 
 
 def _create_workspace_edits(
-    document: workspace.Document, results: Optional[List[lsp.TextEdit]]
+    document: workspace.text_document.TextDocument,
+    results: List[lsp.TextEdit | lsp.AnnotatedTextEdit],
 ):
     return lsp.WorkspaceEdit(
         document_changes=[
@@ -338,7 +372,7 @@ def _create_workspace_edits(
                     version=document.version if document.version else 0,
                 ),
                 edits=results,
-            )
+            ),
         ],
     )
 
@@ -359,26 +393,35 @@ def initialize(params: lsp.InitializeParams) -> None:
     paths = "\r\n   ".join(sys.path)
     log_to_output(f"sys.path used to run Server:\r\n   {paths}")
 
-    GLOBAL_SETTINGS.update(**params.initialization_options.get("globalSettings", {}))
+    GLOBAL_SETTINGS.update(
+        **params.initialization_options.get(  # pyright: ignore[reportOptionalMemberAccess]
+            "globalSettings",
+            {},
+        ),
+    )
 
-    settings = params.initialization_options["settings"]
+    settings = (
+        params.initialization_options[  # pyright: ignore[reportOptionalSubscript]
+            "settings"
+        ]
+    )
     _update_workspace_settings(settings)
     log_to_output(
-        f"Settings used to run Server:\r\n{json.dumps(settings, indent=4, ensure_ascii=False)}\r\n"
+        f"Settings used to run Server:\r\n{json.dumps(settings, indent=4, ensure_ascii=False)}\r\n",
     )
     log_to_output(
-        f"Global settings:\r\n{json.dumps(GLOBAL_SETTINGS, indent=4, ensure_ascii=False)}\r\n"
+        f"Global settings:\r\n{json.dumps(GLOBAL_SETTINGS, indent=4, ensure_ascii=False)}\r\n",
     )
 
 
 @LSP_SERVER.feature(lsp.EXIT)
-def on_exit(_params: Optional[Any] = None) -> None:
+def on_exit(_params: Any | None = None) -> None:
     """Handle clean up on exit."""
     jsonrpc.shutdown_json_rpc()
 
 
 @LSP_SERVER.feature(lsp.SHUTDOWN)
-def on_shutdown(_params: Optional[Any] = None) -> None:
+def on_shutdown(_params: Any | None = None) -> None:
     """Handle clean up on shutdown."""
     jsonrpc.shutdown_json_rpc()
 
@@ -426,9 +469,9 @@ def _get_settings_by_path(file_path: pathlib.Path):
     return setting_values[0]
 
 
-def _get_document_key(document: workspace.Document):
+def _get_document_key(document: workspace.text_document.TextDocument):
     if WORKSPACE_SETTINGS:
-        document_workspace = pathlib.Path(document.path)
+        document_workspace = pathlib.Path(document.uri)
         workspaces = {s["workspaceFS"] for s in WORKSPACE_SETTINGS.values()}
 
         # Find workspace settings for the given file.
@@ -440,14 +483,14 @@ def _get_document_key(document: workspace.Document):
     return None
 
 
-def _get_settings_by_document(document: workspace.Document | None):
-    if document is None or document.path is None:
-        return list(WORKSPACE_SETTINGS.values())[0]
+def _get_settings_by_document(document: workspace.text_document.TextDocument | None):
+    if document is None:
+        return next(iter(WORKSPACE_SETTINGS.values()))
 
     key = _get_document_key(document)
     if key is None:
         # This is either a non-workspace file or there is no workspace.
-        key = os.fspath(pathlib.Path(document.path).parent)
+        key = os.fspath(pathlib.Path(document.uri).parent)
         return {
             "cwd": key,
             "workspaceFS": key,
@@ -461,11 +504,11 @@ def _get_settings_by_document(document: workspace.Document | None):
 # *****************************************************
 # Internal execution APIs.
 # *****************************************************
-def _run_tool_on_document(
-    document: workspace.Document,
+def _run_tool_on_document(  # noqa: C901
+    document: workspace.text_document.TextDocument,
     use_stdin: bool = False,
-    extra_args: Optional[Sequence[str]] = None,
-) -> utils.RunResult | None:
+    extra_args: Sequence[str] | None = None,
+) -> utils.RunResult | None | jsonrpc.RpcRunResult:
     """Runs tool on the given document.
 
     if use_stdin is true then contents of the document is passed to the
@@ -477,7 +520,7 @@ def _run_tool_on_document(
         # Skip notebook cells
         return None
 
-    if utils.is_stdlib_file(document.path):
+    if utils.is_stdlib_file(document.uri):
         return None
 
     # deep copy here to prevent accidentally updating global settings.
@@ -493,7 +536,7 @@ def _run_tool_on_document(
         use_path = True
         argv = settings["path"]
     elif settings["interpreter"] and not utils.is_current_interpreter(
-        settings["interpreter"][0]
+        settings["interpreter"][0],
     ):
         # If there is a different interpreter set use JSON-RPC to the subprocess
         # running under that interpreter.
@@ -509,11 +552,11 @@ def _run_tool_on_document(
     if use_stdin:
         # Currently not supported
         return None
-    else:
-        argv += ["--rules", document.path]
+    argv += ["--rules", document.path]
 
     if use_path:
         # This mode is used when running executables.
+        log_to_output("Using PATH")
         log_to_output(" ".join(argv))
         log_to_output(f"CWD Server: {cwd}")
         result = utils.run_path(
@@ -527,6 +570,7 @@ def _run_tool_on_document(
     elif use_rpc:
         # This mode is used if the interpreter running this server is different from
         # the interpreter used for running this server.
+        log_to_output("Using RPC")
         log_to_output(" ".join(settings["interpreter"] + ["-m"] + argv))
         log_to_output(f"CWD Linter: {cwd}")
 
@@ -546,7 +590,7 @@ def _run_tool_on_document(
             log_to_output(result.stderr)
     else:
         # In this mode the tool is run as a module in the same process as the language server.
-        log_to_output(" ".join([sys.executable, "-m"] + argv))
+        log_to_output(" ".join([sys.executable, "-m", *argv]))
         log_to_output(f"CWD Linter: {cwd}")
         # This is needed to preserve sys.path, in cases where the tool modifies
         # sys.path and that might not work for this scenario next time around.
@@ -570,86 +614,7 @@ def _run_tool_on_document(
         if result.stderr:
             log_to_output(result.stderr)
 
-    log_to_output(f"{document.uri} :\r\n{result.stdout}")
-    return result
-
-
-def _run_tool(extra_args: Sequence[str]) -> utils.RunResult:
-    """Runs tool."""
-    # deep copy here to prevent accidentally updating global settings.
-    settings = copy.deepcopy(_get_settings_by_document(None))
-
-    code_workspace = settings["workspaceFS"]
-    cwd = settings["workspaceFS"]
-
-    use_path = False
-    use_rpc = False
-    if len(settings["path"]) > 0:
-        # 'path' setting takes priority over everything.
-        use_path = True
-        argv = settings["path"]
-    elif len(settings["interpreter"]) > 0 and not utils.is_current_interpreter(
-        settings["interpreter"][0]
-    ):
-        # If there is a different interpreter set use JSON-RPC to the subprocess
-        # running under that interpreter.
-        argv = [TOOL_MODULE]
-        use_rpc = True
-    else:
-        # if the interpreter is same as the interpreter running this
-        # process then run as module.
-        argv = [TOOL_MODULE]
-
-    argv += extra_args
-
-    if use_path:
-        # This mode is used when running executables.
-        log_to_output(" ".join(argv))
-        log_to_output(f"CWD Server: {cwd}")
-        result = utils.run_path(argv=argv, use_stdin=True, cwd=cwd)
-        if result.stderr:
-            log_to_output(result.stderr)
-    elif use_rpc:
-        # This mode is used if the interpreter running this server is different from
-        # the interpreter used for running this server.
-        log_to_output(" ".join(settings["interpreter"] + ["-m"] + argv))
-        log_to_output(f"CWD Linter: {cwd}")
-        result = jsonrpc.run_over_json_rpc(
-            workspace=code_workspace,
-            interpreter=settings["interpreter"],
-            module=TOOL_MODULE,
-            argv=argv,
-            use_stdin=True,
-            cwd=cwd,
-        )
-        if result.exception:
-            log_error(result.exception)
-            result = utils.RunResult(result.stdout, result.stderr)
-        elif result.stderr:
-            log_to_output(result.stderr)
-    else:
-        # In this mode the tool is run as a module in the same process as the language server.
-        log_to_output(" ".join([sys.executable, "-m"] + argv))
-        log_to_output(f"CWD Linter: {cwd}")
-        # This is needed to preserve sys.path, in cases where the tool modifies
-        # sys.path and that might not work for this scenario next time around.
-        with utils.substitute_attr(sys, "path", sys.path[:]):
-            try:
-                # `utils.run_module` is equivalent to running `python -m suricata-check`.
-                # If your tool supports a programmatic API then replace the function below
-                # with code for your tool. You can also use `utils.run_api` helper, which
-                # handles changing working directories, managing io streams, etc.
-                # Also update `_run_tool_on_document` function and `utils.run_module` in `lsp_runner.py`.
-                result = utils.run_module(
-                    module=TOOL_MODULE, argv=argv, use_stdin=True, cwd=cwd
-                )
-            except Exception:
-                log_error(traceback.format_exc(chain=True))
-                raise
-        if result.stderr:
-            log_to_output(result.stderr)
-
-    log_to_output(f"\r\n{result.stdout}\r\n")
+    log_to_output(f"{document.path} :\r\n{result.stdout}")
     return result
 
 
@@ -657,27 +622,42 @@ def _run_tool(extra_args: Sequence[str]) -> utils.RunResult:
 # Logging and notification.
 # *****************************************************
 def log_to_output(
-    message: str, msg_type: lsp.MessageType = lsp.MessageType.Log
+    message: str,
+    msg_type: lsp.MessageType = lsp.MessageType.Log,
 ) -> None:
-    LSP_SERVER.show_message_log(message, msg_type)
+    print(message, file=sys.stderr)
+
+    LSP_SERVER.window_log_message(lsp.LogMessageParams(type=msg_type, message=message))
 
 
 def log_error(message: str) -> None:
-    LSP_SERVER.show_message_log(message, lsp.MessageType.Error)
+    LSP_SERVER.window_log_message(
+        lsp.LogMessageParams(type=lsp.MessageType.Error, message=message),
+    )
     if os.getenv("LS_SHOW_NOTIFICATION", "off") in ["onError", "onWarning", "always"]:
-        LSP_SERVER.show_message(message, lsp.MessageType.Error)
+        LSP_SERVER.window_show_message(
+            lsp.ShowMessageParams(type=lsp.MessageType.Error, message=message),
+        )
 
 
 def log_warning(message: str) -> None:
-    LSP_SERVER.show_message_log(message, lsp.MessageType.Warning)
+    LSP_SERVER.window_log_message(
+        lsp.LogMessageParams(type=lsp.MessageType.Warning, message=message),
+    )
     if os.getenv("LS_SHOW_NOTIFICATION", "off") in ["onWarning", "always"]:
-        LSP_SERVER.show_message(message, lsp.MessageType.Warning)
+        LSP_SERVER.window_show_message(
+            lsp.ShowMessageParams(type=lsp.MessageType.Warning, message=message),
+        )
 
 
 def log_always(message: str) -> None:
-    LSP_SERVER.show_message_log(message, lsp.MessageType.Info)
+    LSP_SERVER.window_log_message(
+        lsp.LogMessageParams(type=lsp.MessageType.Info, message=message),
+    )
     if os.getenv("LS_SHOW_NOTIFICATION", "off") in ["always"]:
-        LSP_SERVER.show_message(message, lsp.MessageType.Info)
+        LSP_SERVER.window_show_message(
+            lsp.ShowMessageParams(type=lsp.MessageType.Info, message=message),
+        )
 
 
 # *****************************************************

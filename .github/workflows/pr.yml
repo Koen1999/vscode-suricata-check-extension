@@ -1,4 +1,4 @@
-name: Release
+name: PR
 
 on:
   push:
@@ -8,24 +8,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  release:
+  pr:
     runs-on: ubuntu-latest
-    permissions:
-        contents: write
-    environment: secrets
       
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
-        with:
-          fetch-depth: 0 
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
-
-      - name: Setup vsce
-        run: npm install -g @vscode/vsce
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -34,13 +25,6 @@ jobs:
           
       - name: Install Nox
         run: pip install nox
-
-      - name: Update package.json Version
-        run: |
-          TIMESTAMP=$(date -u +'%Y.%m.%d')
-          npm version $TIMESTAMP --no-git-tag-version
-          
-          echo "NEW_VERSION=$TIMESTAMP" >> $GITHUB_ENV
 
       - name: Install and Update Dependencies
         run: nox --session update_packages
@@ -56,11 +40,3 @@ jobs:
 
       # - name: Test
       #   run: nox --session tests
-
-      - name: "Publish Release on VS Code Marketplace"
-        run: vsce publish -p ${{ secrets.VSCE_TOKEN }}
-
-      - name: Commit release changes
-        uses: stefanzweifel/git-auto-commit-action@v7
-        with:
-            commit_message: Release version ${{ env.NEW_VERSION }}

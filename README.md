@@ -27,8 +27,8 @@ The contents of `suricata-check.ini` can be configured as follows:
 ```ini
 [suricata-check]
 issue-severity="INFO"
-include-all=true
-exclude=["P.*", "Q.*"]
+include=["M.*", "S.*", "C.*"]
+exclude=["S800"]
 ```
 
 ### Option 2: CLI Arguments
@@ -42,8 +42,10 @@ It is also possible to enable or disable individual or groups of codes using the
 For example, the following configuration will include all issues concerning mandatory Suricata options and all issues based on the Suricata Style Guide, except S800 which prescribes `attack_target` as a mandatory metadata option:
 ```json
 "suricata-check.args": [
+  "--issue-severity=INFO",
   "--include=M.*",
   "--include=S.*",
+  "--include=C.*",
   "--exclude=S800",
 ]
 ```
@@ -62,7 +64,7 @@ More details can be found in the [documentation on suppressing rules](https://su
 
 ## Performance
 
-For optimal performance, we suggest setting `suricata-check.importStrategy` to `fromEnvironment` and installing `suricata-check` with `regex` into your environment using `pip install -U suricata-check[performance]`.
+For optimal performance, we suggest setting `suricata-check.importStrategy` to `fromEnvironment` and installing `suricata-check` with `regex` into your environment using `pip install -U suricata-check[performance]`. For more details check the [documentation page for the VSCode extension](https://suricata-check.teuwen.net/vscode.html).
 
 ## Alterative distributions
 

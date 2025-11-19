@@ -12,17 +12,22 @@ import site
 import subprocess
 import sys
 import threading
-from typing import Any, Callable, List, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 # Save the working directory used when loading this module
 SERVER_CWD = os.getcwd()
 CWD_LOCK = threading.Lock()
 
 
-def as_list(content: Union[Any, List[Any], Tuple[Any]]) -> Union[List[Any], Tuple[Any]]:
+def as_list(content: Any | list[Any] | tuple[Any]) -> list[Any]:
     """Ensures we always get a list"""
-    if isinstance(content, (list, tuple)):
+    if isinstance(content, list):
         return content
+    if isinstance(content, tuple):
+        return list(*content)
     return [content]
 
 
@@ -31,14 +36,14 @@ _site_paths = tuple(
     [
         os.path.normcase(os.path.normpath(p))
         for p in (as_list(site.getsitepackages()) + as_list(site.getusersitepackages()))
-    ]
+    ],
 )
 
 
 def is_same_path(file_path1, file_path2) -> bool:
     """Returns true if two paths are the same."""
     return os.path.normcase(os.path.normpath(file_path1)) == os.path.normcase(
-        os.path.normpath(file_path2)
+        os.path.normpath(file_path2),
     )
 
 
@@ -108,7 +113,10 @@ def change_cwd(new_cwd):
 
 
 def _run_module(
-    module: str, argv: Sequence[str], use_stdin: bool, source: str = None
+    module: str,
+    argv: Sequence[str],
+    use_stdin: bool,
+    source: str | None = None,
 ) -> RunResult:
     """Runs as a module."""
     str_output = CustomIO("<stdout>", encoding="utf-8")
@@ -131,7 +139,11 @@ def _run_module(
 
 
 def run_module(
-    module: str, argv: Sequence[str], use_stdin: bool, cwd: str, source: str = None
+    module: str,
+    argv: Sequence[str],
+    use_stdin: bool,
+    cwd: str,
+    source: str | None = None,
 ) -> RunResult:
     """Runs as a module."""
     with CWD_LOCK:
@@ -142,7 +154,10 @@ def run_module(
 
 
 def run_path(
-    argv: Sequence[str], use_stdin: bool, cwd: str, source: str = None
+    argv: Sequence[str],
+    use_stdin: bool,
+    cwd: str,
+    source: str | None = None,
 ) -> RunResult:
     """Runs as an executable."""
     if use_stdin:
@@ -159,8 +174,7 @@ def run_path(
         result = subprocess.run(
             argv,
             encoding="utf-8",
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             check=False,
             cwd=cwd,
         )
@@ -172,7 +186,7 @@ def run_api(
     argv: Sequence[str],
     use_stdin: bool,
     cwd: str,
-    source: str = None,
+    source: str | None = None,
 ) -> RunResult:
     """Run a API."""
     with CWD_LOCK:
@@ -186,7 +200,7 @@ def _run_api(
     callback: Callable[[Sequence[str], CustomIO, CustomIO, CustomIO | None], None],
     argv: Sequence[str],
     use_stdin: bool,
-    source: str = None,
+    source: str | None = None,
 ) -> RunResult:
     str_output = CustomIO("<stdout>", encoding="utf-8")
     str_error = CustomIO("<stderr>", encoding="utf-8")
@@ -202,6 +216,10 @@ def _run_api(
                             str_input.seek(0)
                             callback(argv, str_output, str_error, str_input)
                     else:
-                        callback(argv, str_output, str_error)
+                        callback(
+                            argv,
+                            str_output,
+                            str_error,
+                        )  # pyright: ignore[reportCallIssue]
 
     return RunResult(str_output.get_value(), str_error.get_value())
