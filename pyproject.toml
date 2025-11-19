@@ -1,0 +1,93 @@
+[project]
+name = "vscode-suricata-check-extension"
+requires-python = ">=3.9"
+
+[tool.ruff]
+line-length = 127
+indent-width = 4
+target-version = "py39"
+exclude = ["**/__pycache__", "src/test", "bundled/libs"]
+
+[tool.ruff.lint]
+select = [
+  "E",
+  "F",
+  "W",
+  "C",
+  "I",
+  "N",
+  # "D",
+  "UP",
+  "YTT",
+  # "ANN",
+  "ASYNC",
+  "ASYNC1",
+  # "BLE",
+  "A",
+  "COM",
+  "C4",
+  "DTZ",
+  # "T10",
+  "DJ",
+  "EXE",
+  "ISC",
+  "ICN",
+  "LOG",
+  "G",
+  "INP",
+  "PIE",
+  # "T20",
+  "PYI",
+  "PT",
+  "Q",
+  "RSE",
+  "RET",
+  "SLF",
+  "SLOT",
+  "TCH",
+  "INT",
+  "ARG",
+  "FIX",
+  "ERA",
+  "PD",
+  "PGH",
+  # "PL",
+  "FLY",
+  "NPY",
+  "AIR",
+  "RUF",
+]
+ignore = ["N807", "UP032", "D415", "UP006", "UP035"]
+fixable = ["ALL"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = true
+docstring-code-line-length = "dynamic"
+
+[tool.pyright]
+pythonVersion = "3.9"
+pythonPlatform = "All"
+include = ["src", "bundled"]
+exclude = ["**/__pycache__", "src/test", "bundled/libs"]
+typeCheckingMode = "standard"
+reportDuplicateImport = "warning"
+reportPrivateUsage = "warning"
+reportDeprecated = "warning"
+reportMissingSuperCall = "warning"
+reportUnnecessaryIsInstance = "warning"
+reportUnnecessaryCast = "warning"
+reportUnnecessaryComparison = "warning"
+reportUnnecessaryContains = "warning"
+reportImplicitStringConcatenation = "warning"
+reportUnusedExpression = "warning"
+reportUnnecessaryTypeIgnoreComment = "warning"
+reportMatchNotExhaustive = "warning"
+reportIncompatibleMethodOverride = "warning"
+reportAssignmentType = "warning"

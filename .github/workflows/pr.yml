@@ -1,0 +1,42 @@
+name: PR
+
+on:
+  push:
+    branches: ["main"]
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr:
+    runs-on: ubuntu-latest
+      
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          
+      - name: Install Nox
+        run: pip install nox
+
+      - name: Install and Update Dependencies
+        run: nox --session update_packages
+
+      - name: Prepare Python Environment with Nox
+        run: nox --session setup
+
+      - name: Build Package with Nox
+        run: nox --session build_package
+
+      - name: Lint
+        run: nox --session lint
+
+      # - name: Test
+      #   run: nox --session tests

@@ -42,14 +42,20 @@ jobs:
           
           echo "NEW_VERSION=$TIMESTAMP" >> $GITHUB_ENV
 
-      - name: Install and Update Node Dependencies (npm update)
-        run: npm update
+      - name: Install and Update Dependencies
+        run: nox --session update_packages
 
       - name: Prepare Python Environment with Nox
         run: nox --session setup
 
       - name: Build Package with Nox
         run: nox --session build_package
+
+      - name: Lint
+        run: nox --session lint
+
+      # - name: Test
+      #   run: nox --session tests
 
       - name: "Publish Release on VS Code Marketplace"
         run: vsce publish -p ${{ secrets.VSCE_TOKEN }}

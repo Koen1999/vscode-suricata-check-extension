@@ -11,8 +11,9 @@ import pathlib
 import subprocess
 import threading
 import uuid
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
-from typing import BinaryIO, Dict, Optional, Sequence, Union
+from typing import Optional, Union
 
 CONTENT_LENGTH = "Content-Length: "
 RUNNER_SCRIPT = str(pathlib.Path(__file__).parent / "lsp_runner.py")
@@ -23,10 +24,10 @@ def to_str(text) -> str:
     return text.decode("utf-8") if isinstance(text, bytes) else text
 
 
-class StreamClosedException(Exception):
+class StreamClosedError(Exception):
     """JSON RPC stream is closed."""
 
-    pass  # pylint: disable=unnecessary-pass
+    # pylint: disable=unnecessary-pass
 
 
 class JsonWriter:
@@ -45,13 +46,13 @@ class JsonWriter:
     def write(self, data):
         """Writes given data to stream in JSON-RPC format."""
         if self._writer.closed:
-            raise StreamClosedException()
+            raise StreamClosedError
 
         with self._lock:
             content = json.dumps(data)
             length = len(content.encode("utf-8"))
             self._writer.write(
-                f"{CONTENT_LENGTH}{length}\r\n\r\n{content}".encode("utf-8")
+                f"{CONTENT_LENGTH}{length}\r\n\r\n{content}".encode(),  # pyright: ignore[reportArgumentType]
             )
             self._writer.flush()
 
@@ -70,7 +71,7 @@ class JsonReader:
     def read(self):
         """Reads data from the stream in JSON-RPC format."""
         if self._reader.closed:
-            raise StreamClosedException
+            raise StreamClosedError
         length = None
         while not length:
             line = to_str(self._readline())
@@ -94,7 +95,7 @@ class JsonReader:
 class JsonRpc:
     """Manages sending and receiving data over JSON-RPC."""
 
-    def __init__(self, reader: io.TextIOWrapper, writer: io.TextIOWrapper):
+    def __init__(self, reader, writer):
         self._reader = JsonReader(reader)
         self._writer = JsonWriter(writer)
 
@@ -114,7 +115,7 @@ class JsonRpc:
         return self._reader.read()
 
 
-def create_json_rpc(readable: BinaryIO, writable: BinaryIO) -> JsonRpc:
+def create_json_rpc(readable, writable) -> JsonRpc:
     """Creates JSON-RPC wrapper for the readable and writable streams."""
     return JsonRpc(readable, writable)
 
@@ -123,9 +124,9 @@ class ProcessManager:
     """Manages sub-processes launched for running tools."""
 
     def __init__(self):
-        self._args: Dict[str, Sequence[str]] = {}
-        self._processes: Dict[str, subprocess.Popen] = {}
-        self._rpc: Dict[str, JsonRpc] = {}
+        self._args: dict[str, Sequence[str]] = {}
+        self._processes: dict[str, subprocess.Popen] = {}
+        self._rpc: dict[str, JsonRpc] = {}
         self._lock = threading.Lock()
         self._thread_pool = ThreadPoolExecutor(10)
 
@@ -144,8 +145,11 @@ class ProcessManager:
             cwd=cwd,
             stdout=subprocess.PIPE,
             stdin=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
         self._processes[workspace] = proc
+        assert proc.stdout is not None
+        assert proc.stdin is not None
         self._rpc[workspace] = create_json_rpc(proc.stdout, proc.stdin)
 
         def _monitor_process():
@@ -155,7 +159,7 @@ class ProcessManager:
                     del self._processes[workspace]
                     rpc = self._rpc.pop(workspace)
                     rpc.close()
-                except:  # pylint: disable=bare-except
+                except:  # pylint: disable=bare-except  # noqa: E722
                     pass
 
         self._thread_pool.submit(_monitor_process)
@@ -165,7 +169,7 @@ class ProcessManager:
         with self._lock:
             if workspace in self._rpc:
                 return self._rpc[workspace]
-        raise StreamClosedException()
+        raise StreamClosedError
 
 
 _process_manager = ProcessManager()
@@ -175,14 +179,16 @@ atexit.register(_process_manager.stop_all_processes)
 def _get_json_rpc(workspace: str) -> Union[JsonRpc, None]:
     try:
         return _process_manager.get_json_rpc(workspace)
-    except StreamClosedException:
+    except StreamClosedError:
         return None
     except KeyError:
         return None
 
 
 def get_or_start_json_rpc(
-    workspace: str, interpreter: Sequence[str], cwd: str
+    workspace: str,
+    interpreter: Sequence[str],
+    cwd: str,
 ) -> Union[JsonRpc, None]:
     """Gets an existing JSON-RPC connection or starts one and return it."""
     res = _get_json_rpc(workspace)
@@ -210,7 +216,7 @@ def run_over_json_rpc(
     argv: Sequence[str],
     use_stdin: bool,
     cwd: str,
-    source: str = None,
+    source: Optional[str] = None,
 ) -> RpcRunResult:
     """Uses JSON-RPC to execute a command."""
     rpc: Union[JsonRpc, None] = get_or_start_json_rpc(workspace, interpreter, cwd)
@@ -235,7 +241,8 @@ def run_over_json_rpc(
 
     if data["id"] != msg_id:
         return RpcRunResult(
-            "", f"Invalid result for request: {json.dumps(msg, indent=4)}"
+            "",
+            f"Invalid result for request: {json.dumps(msg, indent=4)}",
         )
 
     result = data["result"] if "result" in data else ""

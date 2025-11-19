@@ -1,16 +1,15 @@
 # Copyright (c) Microsoft Corporation, Koen Teuwen. All rights reserved.
 # Licensed under the MIT License.
-"""
-Test for linting over LSP.
-"""
+"""Test for linting over LSP."""
 
 from threading import Event
+
 from .lsp_test_client import constants, defaults, session, utils
 
 TEST_FILE_PATH = constants.TEST_DATA / "sample1" / "sample.rules"
 TEST_FILE_URI = utils.as_uri(str(TEST_FILE_PATH))
 SERVER_INFO = utils.get_server_info_defaults()
-TIMEOUT = 10  # 10 seconds
+TIMEOUT = 10  # seconds
 
 
 def test_linting_example():
@@ -37,11 +36,24 @@ def test_linting_example():
                     "languageId": "suricata",
                     "version": 1,
                     "text": contents,
-                }
-            }
+                },
+            },
         )
 
+        # ls_session.notify_did_change(
+        #     {
+        #         "textDocument": {
+        #             "uri": TEST_FILE_URI,
+        #             "languageId": "suricata",
+        #             "version": 1,
+
+        #         },
+        #         "contentChanges": [{"text": contents,}],
+        #     },
+        # )
+
         # wait for some time to receive all notifications
-        done.wait(TIMEOUT)
+        if not done.wait(TIMEOUT):
+            print("Timeout: No diagnostics received")
 
         assert len(actual) > 0
