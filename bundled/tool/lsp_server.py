@@ -1,6 +1,7 @@
 # Copyright (c) Microsoft Corporation, Koen Teuwen. All rights reserved.
 # Licensed under the MIT License.
 """Implementation of tool support over LSP."""
+
 from __future__ import annotations
 
 import copy
