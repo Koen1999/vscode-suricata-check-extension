@@ -9,7 +9,7 @@
 # run the above commands manually.
 
 # Required packages
-pygls
+pygls>=2.0.0
 packaging
 
 suricata-check>=0.9.0beta0

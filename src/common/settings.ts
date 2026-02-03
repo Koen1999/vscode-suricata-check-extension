@@ -42,7 +42,13 @@ function resolveVariables(value: string[], workspace?: WorkspaceFolder): string[
 }
 
 export function getInterpreterFromSetting(namespace: string, scope?: ConfigurationScope) {
-    const config = getConfiguration(namespace, scope);
+    // When no scope is provided, explicitly pass `null` to indicate that we want
+    // the effective value for any resource. This avoids the VS Code warning when
+    // accessing a resource-scoped configuration without a resource.
+    // `workspace.getConfiguration` accepts `null` at runtime but TypeScript's
+    // type for ConfigurationScope doesn't include null. Cast to `any` to avoid
+    // a type error while still passing `null` at runtime to get the effective value.
+    const config = getConfiguration(namespace, (scope ?? null) as any);
     return config.get<string[]>('interpreter');
 }
 
@@ -79,7 +85,11 @@ function getGlobalValue<T>(config: WorkspaceConfiguration, key: string, defaultV
 }
 
 export async function getGlobalSettings(namespace: string, includeInterpreter?: boolean): Promise<ISettings> {
-    const config = getConfiguration(namespace);
+    // Explicitly pass `null` to getConfiguration to retrieve the effective
+    // resource-scoped values for any resource without emitting a warning.
+    // Pass `null as any` to getConfiguration so we retrieve the effective
+    // resource-scoped values for any resource without a warning from VS Code.
+    const config = getConfiguration(namespace, null as any);
 
     let interpreter: string[] = [];
     if (includeInterpreter) {
