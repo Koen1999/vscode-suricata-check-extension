@@ -98,7 +98,13 @@ TOOL_ARGS = [
 def did_open(params: lsp.DidOpenTextDocumentParams) -> None:
     """LSP handler for textDocument/didOpen request."""
     document = LSP_SERVER.workspace.get_text_document(params.text_document.uri)
-    diagnostics: list[lsp.Diagnostic] = _linting_helper(document)
+    log_to_output(f"didOpen received for {document.uri}")
+    try:
+        diagnostics: list[lsp.Diagnostic] = _linting_helper(document)
+    except Exception as exc:  # pylint: disable=broad-except
+        log_error(f"Exception in did_open linting helper: {exc}")
+        diagnostics = []
+    log_to_output(f"Publishing {len(diagnostics)} diagnostics for {document.uri}")
     LSP_SERVER.text_document_publish_diagnostics(
         lsp.PublishDiagnosticsParams(uri=document.uri, diagnostics=diagnostics),
     )
@@ -138,10 +144,25 @@ def _linting_helper(document: workspace.TextDocument) -> list[lsp.Diagnostic]:
 
     log_to_output("Reading suricata-check output from {}".format(input_path))
 
-    with open(input_path) as fh:
-        output = json.loads(fh.read())
+    try:
+        if not os.path.exists(input_path):
+            log_error(f"Output file not found: {input_path}")
+            return []
+        with open(input_path) as fh:
+            raw = fh.read()
+    except Exception as exc:  # pylint: disable=broad-except
+        log_error(f"Failed to read suricata-check output {input_path}: {exc}")
+        return []
 
-    return _parse_output(output)
+    try:
+        output = json.loads(raw)
+    except Exception as exc:  # pylint: disable=broad-except
+        log_error(f"Failed to parse JSON output from {input_path}: {exc}")
+        return []
+
+    parsed = _parse_output(output)
+    log_to_output(f"Parsed {len(parsed)} diagnostics from output {input_path}")
+    return parsed
 
 
 def _parse_output(output: list[dict]) -> list[lsp.Diagnostic]:
@@ -442,7 +463,7 @@ def _update_workspace_settings(settings):
         key = os.getcwd()
         WORKSPACE_SETTINGS[key] = {
             "cwd": key,
-            "workspaceFS": key,
+            "workspaceFS": uris.to_fs_path(key),
             "workspace": uris.from_fs_path(key),
             **_get_global_defaults(),
         }
@@ -451,7 +472,7 @@ def _update_workspace_settings(settings):
     for setting in settings:
         key = uris.to_fs_path(setting["workspace"])
         WORKSPACE_SETTINGS[key] = {
-            "cwd": key,
+            "cwd": key.lstrip('\\'),
             **setting,
             "workspaceFS": key,
         }
@@ -491,7 +512,7 @@ def _get_settings_by_document(document: workspace.text_document.TextDocument | N
     key = _get_document_key(document)
     if key is None:
         # This is either a non-workspace file or there is no workspace.
-        key = os.fspath(pathlib.Path(document.uri).parent)
+        key = os.fspath(pathlib.Path(uris.to_fs_path(document.uri)).parent)
         return {
             "cwd": key,
             "workspaceFS": key,

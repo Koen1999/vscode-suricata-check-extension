@@ -46,18 +46,25 @@ class LspSession(MethodDispatcher):
         shell=True needed for pytest-cov to work in subprocess.
         """
         # pylint: disable=consider-using-with
+        # Ensure we capture stderr so we can drain it and avoid pipe-blocking
         self._sub = subprocess.Popen(
             [sys.executable, str(self.script)],
             stdout=subprocess.PIPE,
             stdin=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             bufsize=0,
             cwd=self.cwd,
             env=os.environ,
-            shell="WITH_COVERAGE" in os.environ,
+            shell=("WITH_COVERAGE" in os.environ),
         )
 
-        self._writer = JsonRpcStreamWriter(os.fdopen(self._sub.stdin.fileno(), "wb"))
-        self._reader = JsonRpcStreamReader(os.fdopen(self._sub.stdout.fileno(), "rb"))
+        # Use the Popen file objects directly (avoid os.fdopen which can duplicate
+        # the underlying FD and lead to double-close / Bad file descriptor issues).
+        self._writer = JsonRpcStreamWriter(self._sub.stdin)
+        self._reader = JsonRpcStreamReader(self._sub.stdout)
+
+        # Start background stderr drain to avoid the child blocking on writes.
+        self._stderr_future = self._thread_pool.submit(self._drain_stderr)
 
         dispatcher = {
             PUBLISH_DIAGNOSTICS: self._publish_diagnostics,
@@ -69,13 +76,47 @@ class LspSession(MethodDispatcher):
         return self
 
     def __exit__(self, typ, value, _tb):
+        # Request the server to shutdown and exit, then perform cleanup.
         self.shutdown(True)
         try:
             self._sub.terminate()
         except Exception:  # pylint:disable=broad-except
             pass
-        self._endpoint.shutdown()
-        self._thread_pool.shutdown()
+
+        # Ensure the endpoint is shut down and background threads stop.
+        try:
+            self._endpoint.shutdown()
+        except Exception:
+            pass
+
+        # Close stdio file objects to avoid finalizer races and "Bad file descriptor" warnings.
+        try:
+            if self._sub.stdin:
+                try:
+                    self._sub.stdin.close()
+                except Exception:
+                    pass
+            if self._sub.stdout:
+                try:
+                    self._sub.stdout.close()
+                except Exception:
+                    pass
+            if getattr(self._sub, 'stderr', None):
+                try:
+                    self._sub.stderr.close()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # Wait for background tasks to finish and shutdown thread pool.
+        try:
+            if getattr(self, '_stderr_future', None):
+                self._stderr_future.cancel()
+        except Exception:
+            pass
+
+        self._thread_pool.shutdown(wait=True)
 
     def initialize(
         self,
@@ -198,11 +239,29 @@ class LspSession(MethodDispatcher):
 
         def _handler():
             callback = self.get_notification_callback(notification_name)
-            callback(params)
-            fut.set_result(None)
+            try:
+                callback(params)
+            finally:
+                fut.set_result(None)
 
         self._thread_pool.submit(_handler)
         return fut
+
+    def _drain_stderr(self):
+        """Continuously read subprocess stderr and write to parent stderr to avoid blocking."""
+        try:
+            fh = self._sub.stderr
+            while fh:
+                data = fh.read(1024)
+                if not data:
+                    break
+                try:
+                    sys.stderr.buffer.write(data)
+                    sys.stderr.buffer.flush()
+                except Exception:
+                    break
+        except Exception:
+            return None
 
     def _send_request(self, name, params=None, handle_response=lambda f: f.done()):
         """Sends {name} request to the LSP server."""
