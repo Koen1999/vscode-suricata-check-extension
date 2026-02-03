@@ -101,7 +101,7 @@ class LspSession(MethodDispatcher):
                     self._sub.stdout.close()
                 except Exception:
                     pass
-            if getattr(self._sub, 'stderr', None):
+            if getattr(self._sub, "stderr", None):
                 try:
                     self._sub.stderr.close()
                 except Exception:
@@ -111,7 +111,7 @@ class LspSession(MethodDispatcher):
 
         # Wait for background tasks to finish and shutdown thread pool.
         try:
-            if getattr(self, '_stderr_future', None):
+            if getattr(self, "_stderr_future", None):
                 self._stderr_future.cancel()
         except Exception:
             pass

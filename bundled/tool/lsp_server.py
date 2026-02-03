@@ -471,8 +471,9 @@ def _update_workspace_settings(settings):
 
     for setting in settings:
         key = uris.to_fs_path(setting["workspace"])
+        assert key is not None
         WORKSPACE_SETTINGS[key] = {
-            "cwd": key.lstrip('\\'),
+            "cwd": key.lstrip("\\"),
             **setting,
             "workspaceFS": key,
         }
@@ -512,7 +513,9 @@ def _get_settings_by_document(document: workspace.text_document.TextDocument | N
     key = _get_document_key(document)
     if key is None:
         # This is either a non-workspace file or there is no workspace.
-        key = os.fspath(pathlib.Path(uris.to_fs_path(document.uri)).parent)
+        fs_uri = uris.to_fs_path(document.uri)
+        assert fs_uri is not None
+        key = os.fspath(pathlib.Path(fs_uri).parent)
         return {
             "cwd": key,
             "workspaceFS": key,
