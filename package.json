@@ -167,7 +167,7 @@
         "eslint": "^10.1.0",
         "glob": "^13.0.6",
         "prettier": "^3.8.1",
-        "typescript": "^5.9.3",
+        "typescript": "^6.0.2",
         "ts-loader": "^9.5.4",
         "webpack": "^5.105.4",
         "webpack-cli": "^7.0.2"
