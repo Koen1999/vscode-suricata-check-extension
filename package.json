@@ -2,7 +2,7 @@
     "name": "suricata-check",
     "displayName": "Suricata Check",
     "description": "Linting support for Suricata rules files using `suricata-check`.",
-    "version": "2026.4.8",
+    "version": "2026.4.17",
     "preview": false,
     "serverInfo": {
         "name": "Suricata Check",
@@ -160,16 +160,16 @@
         "@types/vscode": "1.78.0",
         "@types/glob": "^9.0.0",
         "@types/node": "16.x",
-        "@typescript-eslint/eslint-plugin": "^8.58.1",
-        "@typescript-eslint/parser": "^8.58.1",
+        "@typescript-eslint/eslint-plugin": "^8.58.2",
+        "@typescript-eslint/parser": "^8.58.2",
         "@vscode/test-electron": "^2.5.2",
-        "@vscode/vsce": "^3.7.1",
+        "@vscode/vsce": "^3.9.0",
         "eslint": "^10.2.0",
         "glob": "^13.0.6",
-        "prettier": "^3.8.1",
-        "typescript": "^6.0.2",
+        "prettier": "^3.8.3",
+        "typescript": "^6.0.3",
         "ts-loader": "^9.5.7",
-        "webpack": "^5.105.4",
+        "webpack": "^5.106.2",
         "webpack-cli": "^7.0.2"
     }
 }
