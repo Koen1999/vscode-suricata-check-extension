@@ -422,11 +422,9 @@ def initialize(params: lsp.InitializeParams) -> None:
         ),
     )
 
-    settings = (
-        params.initialization_options[  # pyright: ignore[reportOptionalSubscript]
-            "settings"
-        ]
-    )
+    settings = params.initialization_options[  # pyright: ignore[reportOptionalSubscript]
+        "settings"
+    ]
     _update_workspace_settings(settings)
     log_to_output(
         f"Settings used to run Server:\r\n{json.dumps(settings, indent=4, ensure_ascii=False)}\r\n",
