@@ -1,6 +1,6 @@
 [project]
 name = "vscode-suricata-check-extension"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 [tool.ruff]
 line-length = 127
@@ -72,7 +72,7 @@ docstring-code-format = true
 docstring-code-line-length = "dynamic"
 
 [tool.pyright]
-pythonVersion = "3.9"
+pythonVersion = "3.10"
 pythonPlatform = "All"
 include = ["src", "bundled"]
 exclude = ["**/__pycache__", "src/test", "bundled/libs"]
